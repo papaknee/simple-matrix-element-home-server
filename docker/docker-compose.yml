@@ -13,8 +13,6 @@
 #   lk-jwt       – JWT bridge: Matrix auth → LiveKit tokens
 # =============================================================================
 
-version: "3.9"
-
 # ── Secrets from environment variables ────────────────────────────────────────
 x-common-env: &common-env
   DOMAIN: ${DOMAIN}
@@ -149,8 +147,10 @@ services:
     ports:
       # WebRTC / ICE via UDP
       - "7882:7882/udp"
-      # WebSocket signalling (internal; exposed via nginx)
-      - "7880:7880"
+      # WebSocket signalling – bound to localhost for debugging only;
+      # production traffic reaches LiveKit via the nginx reverse proxy
+      # on the internal Docker network (no host port exposure needed).
+      - "127.0.0.1:7880:7880"
 
   # ── lk-jwt-service (Matrix → LiveKit JWT bridge) ─────────────────────────────
   lk-jwt:
