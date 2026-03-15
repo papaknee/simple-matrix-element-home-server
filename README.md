@@ -245,6 +245,9 @@ enable_registration_without_verification: true
 ```
 Then: `docker compose restart synapse`
 
+> See the [Configuration Guide → Registration options](#registration-options)
+> for captcha, email verification, and invite-token variants.
+
 ### Synapse Admin API
 The [Synapse Admin API](https://element-hq.github.io/synapse/latest/admin_api/) is available at `https://matrix.example.com/_synapse/admin/`. You need an admin access token.
 
@@ -367,6 +370,186 @@ curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
 - The Synapse admin API (`/_synapse/admin/`) is exposed only to admin users.
 - coturn is configured with `no-loopback-peers` and `denied-peer-ip` rules to prevent SSRF attacks via TURN relay.
 - All HTTPS traffic uses TLS 1.2+ with the Mozilla Intermediate cipher list.
+
+---
+
+## Configuration Guide
+
+After first deployment, the rendered config lives at `docker/data/synapse/homeserver.yaml`.
+Edit that file directly for quick changes (remember to `docker compose restart synapse`).
+For permanent changes that survive `deploy.sh` re-runs, edit the **template** at
+`docker/config/synapse/homeserver.yaml.template` and delete the rendered file so
+it is re-generated on the next `deploy.sh` run.
+
+### Private server – disable federation
+
+By default your server federates with the rest of the Matrix network. To make it
+completely private (users can only talk to other users on **your** server):
+
+**Step 1** – in `docker/data/synapse/homeserver.yaml`, set:
+```yaml
+federation_domain_whitelist: []          # empty list = block all servers
+allow_public_rooms_over_federation: false
+```
+
+**Step 2** – Change the listener resources so the federation port is never served:
+```yaml
+listeners:
+  - port: 8008
+    ...
+    resources:
+      - names: [client]    # remove 'federation' from this list
+        compress: false
+```
+
+**Step 3** – In `docker/nginx/templates/matrix-ssl.conf.template` (and the HTTP
+variant), remove or comment out the `server { listen 8448 ... }` block so the
+federation port is not exposed at all.
+
+Then restart Synapse:
+```bash
+cd docker && docker compose restart synapse
+```
+
+> **Whitelist mode**: Instead of blocking everything, you can allow only specific
+> trusted servers:
+> ```yaml
+> federation_domain_whitelist:
+>   - "trusted-partner.example.com"
+>   - "family-server.example.net"
+> ```
+
+---
+
+### Registration options
+
+Edit `docker/data/synapse/homeserver.yaml` and `docker compose restart synapse` after any change.
+
+#### Option A – Closed registration (default, most secure)
+Only admins can create accounts via the command line. No self-service signup.
+```yaml
+enable_registration: false
+enable_registration_without_verification: false
+```
+Create accounts manually:
+```bash
+cd docker/
+docker compose exec synapse register_new_matrix_user \
+    -c /data/homeserver.yaml \
+    -u USERNAME -p PASSWORD --no-admin \
+    http://localhost:8008
+```
+
+#### Option B – Open registration (anyone can sign up)
+```yaml
+enable_registration: true
+enable_registration_without_verification: true
+```
+> ⚠️ Only use this if you intend to run a public server. Anyone who can reach your
+> URL can create an account.
+
+#### Option C – Registration with email verification
+Users must confirm a valid email address before their account is activated.
+Requires [email/SMTP to be configured](#email--smtp-setup).
+```yaml
+enable_registration: true
+enable_registration_without_verification: false
+```
+
+#### Option D – Registration with CAPTCHA
+Adds a reCAPTCHA v2 challenge to the signup form, deterring bots.
+Get keys at <https://www.google.com/recaptcha/admin/create> (choose v2 "I'm not a robot").
+```yaml
+enable_registration: true
+enable_captcha: true
+recaptcha_public_key: "YOUR_RECAPTCHA_SITE_KEY"
+recaptcha_private_key: "YOUR_RECAPTCHA_SECRET_KEY"
+```
+CAPTCHA can be combined with email verification for two layers of protection.
+
+#### Option E – Invite tokens (controlled open registration)
+Generate single-use or limited-use invite codes so only invited people can register.
+```yaml
+enable_registration: true
+registration_requires_token: true
+```
+Create a token via the Admin API:
+```bash
+curl -X POST https://matrix.example.com/_synapse/admin/v1/registration_tokens/new \
+    -H "Authorization: Bearer YOUR_ADMIN_ACCESS_TOKEN" \
+    -H "Content-Type: application/json" \
+    -d '{"uses_allowed": 1}'
+```
+Share the returned token with the person you want to invite. They enter it during
+signup. See the [Synapse docs](https://element-hq.github.io/synapse/latest/usage/administration/admin_api/registration_tokens.html) for managing tokens.
+
+---
+
+### Email / SMTP setup
+
+Email is needed for:
+- **Password resets** (users who forget their password)
+- **Email verification** (Option C registration above)
+- **Push notification emails** (missed message digests)
+
+Without email, users cannot reset forgotten passwords.
+
+Edit `docker/data/synapse/homeserver.yaml` and uncomment/fill in the `email:` block:
+
+```yaml
+email:
+  smtp_host: smtp.example.com
+  smtp_port: 587
+  smtp_user: noreply@example.com
+  smtp_pass: "your_smtp_password"
+  require_transport_security: true   # enforce STARTTLS (recommended)
+  notif_from: "Matrix <noreply@matrix.example.com>"
+  enable_notifs: true                # missed-message digest emails
+```
+
+Then restart Synapse:
+```bash
+cd docker && docker compose restart synapse
+```
+
+#### Gmail / Google Workspace
+```yaml
+email:
+  smtp_host: smtp.gmail.com
+  smtp_port: 587
+  smtp_user: youraddress@gmail.com
+  smtp_pass: "your_app_password"   # NOT your account password; generate at myaccount.google.com/apppasswords
+  require_transport_security: true
+  notif_from: "Matrix <youraddress@gmail.com>"
+  enable_notifs: true
+```
+> Generate an App Password at <https://myaccount.google.com/apppasswords>
+> (requires 2-Step Verification enabled on the Google account).
+
+#### Mailgun / SendGrid / Brevo (transactional email services)
+These services give you a reliable sending IP and good deliverability:
+```yaml
+email:
+  smtp_host: smtp.mailgun.org       # or smtp.sendgrid.net / smtp-relay.brevo.com
+  smtp_port: 587
+  smtp_user: postmaster@mg.yourdomain.com
+  smtp_pass: "your_api_key_or_smtp_password"
+  require_transport_security: true
+  notif_from: "Matrix <noreply@yourdomain.com>"
+  enable_notifs: true
+```
+
+#### Self-hosted relay (Postfix, Mailcow, etc.)
+```yaml
+email:
+  smtp_host: mail.yourdomain.com
+  smtp_port: 587
+  smtp_user: noreply@yourdomain.com
+  smtp_pass: "mailbox_password"
+  require_transport_security: true
+  notif_from: "Matrix <noreply@yourdomain.com>"
+  enable_notifs: true
+```
 
 ---
 

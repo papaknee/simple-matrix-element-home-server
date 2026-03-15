@@ -121,8 +121,9 @@ services:
   coturn:
     image: coturn/coturn:latest
     restart: unless-stopped
-    networks: [matrix]
-    # coturn needs host networking for UDP relay to work correctly
+    # coturn needs host networking for UDP relay to work correctly.
+    # network_mode: host is incompatible with the custom 'matrix' network,
+    # so Synapse reaches coturn via the host loopback (127.0.0.1) instead.
     network_mode: host
     volumes:
       - ./data/coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro

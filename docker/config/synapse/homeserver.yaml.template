@@ -11,6 +11,10 @@ pid_file: /data/homeserver.pid
 
 # ── Listeners ─────────────────────────────────────────────────────────────────
 # Synapse listens on 8008 (HTTP). nginx terminates TLS and proxies here.
+#
+# To disable federation at the listener level (strongest privacy option),
+# change names: [client, federation] to names: [client] below.
+# You must also set federation_domain_whitelist: [] further down.
 listeners:
   - port: 8008
     tls: false
@@ -33,7 +37,6 @@ database:
 
 # ── Storage ───────────────────────────────────────────────────────────────────
 media_store_path: /data/media_store
-uploads_path: /data/uploads
 log_config: "/data/log.config"
 
 # ── Signing / security ────────────────────────────────────────────────────────
@@ -44,9 +47,49 @@ form_secret: "${FORM_SECRET}"
 registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
 
 # ── Registration ──────────────────────────────────────────────────────────────
-# Set to true only if you want open registration. Consider require_auth below.
+# Controls how new user accounts are created on your server.
+#
+# OPTION A (default): Closed registration – admin creates all accounts
+#   No one can self-register. Admins must create accounts via the command line:
+#     docker compose exec synapse register_new_matrix_user \
+#       -c /data/homeserver.yaml -u USERNAME -p PASSWORD --no-admin \
+#       http://localhost:8008
+#   This is the most secure option for a private family/team server.
 enable_registration: false
 enable_registration_without_verification: false
+
+# OPTION B: Open registration – anyone can create an account
+#   Change the two lines above to:
+#     enable_registration: true
+#     enable_registration_without_verification: true
+#   WARNING: Only use this if you want a public server. Anyone who can reach
+#   your server URL can create an account.
+
+# OPTION C: Registration with email verification
+#   Requires email/SMTP to be configured (see the Email section below).
+#     enable_registration: true
+#     enable_registration_without_verification: false
+#   Users must confirm a valid email address before their account is activated.
+
+# OPTION D: Registration with CAPTCHA (reCAPTCHA v2)
+#   Get keys at https://www.google.com/recaptcha/admin/create (choose v2)
+#   Add these lines:
+#     enable_registration: true
+#     enable_captcha: true
+#     recaptcha_public_key: "YOUR_RECAPTCHA_SITE_KEY"
+#     recaptcha_private_key: "YOUR_RECAPTCHA_SECRET_KEY"
+#   CAPTCHA can be combined with email verification for two layers of spam protection.
+
+# OPTION E: Registration tokens (invite codes)
+#   Only users with a valid token can register. Tokens are created via the Admin API:
+#     curl -X POST https://${DOMAIN}/_synapse/admin/v1/registration_tokens/new \
+#       -H "Authorization: Bearer ADMIN_ACCESS_TOKEN" \
+#       -H "Content-Type: application/json" \
+#       -d '{"uses_allowed": 1}'
+#   Add these lines:
+#     enable_registration: true
+#     registration_requires_token: true
+#   See: https://element-hq.github.io/synapse/latest/usage/administration/admin_api/registration_tokens.html
 
 # ── Trusted key servers ───────────────────────────────────────────────────────
 trusted_key_servers:
@@ -56,14 +99,67 @@ suppress_key_server_warning: false
 # ── Reporting ─────────────────────────────────────────────────────────────────
 report_stats: false
 
-# ── Email (optional – leave blank to disable) ─────────────────────────────────
+# ── Federation ────────────────────────────────────────────────────────────────
+# Federation lets your server communicate with other Matrix servers (matrix.org,
+# etc.), so your users can join public rooms and message users on other servers.
+#
+# OPTION A (default): Federate with all servers
+#   federation_domain_whitelist: null  # null = allow all
+federation_domain_whitelist: null
+
+# OPTION B: Disable federation entirely (fully private server)
+#   Your server will only communicate with itself. Users cannot join rooms on
+#   other Matrix servers, and no other server can contact yours.
+#   Change the line above to:
+#     federation_domain_whitelist: []
+#   AND change the listener resources above from [client, federation] to [client].
+#   ALSO set allow_public_rooms_over_federation: false (see below).
+
+# OPTION C: Whitelist specific trusted servers only
+#   Only allow federation with a specific list of servers:
+#     federation_domain_whitelist:
+#       - "trusted-partner.example.com"
+#       - "family-server.example.net"
+
+allow_public_rooms_without_auth: false
+allow_public_rooms_over_federation: true
+# Set allow_public_rooms_over_federation: false to prevent other servers from
+# listing your server's public rooms via federation.
+
+# ── Email (optional – required for password resets and email verification) ────
+# Without email configured, users cannot reset forgotten passwords.
+# Uncomment and fill in this section to enable email features.
+#
+# For Gmail / Google Workspace:
+#   smtp_host: smtp.gmail.com
+#   smtp_port: 587
+#   smtp_user: youraddress@gmail.com
+#   smtp_pass: "your_app_password"   # Use an App Password, not your account password
+#   (Generate at https://myaccount.google.com/apppasswords)
+#
+# For a local/self-hosted SMTP relay (e.g. Postfix, Mailcow):
+#   smtp_host: mailserver.example.com
+#   smtp_port: 587
+#
+# For services like Mailgun, SendGrid, Brevo, etc.:
+#   smtp_host: smtp.mailgun.org      # or smtp.sendgrid.net, smtp-relay.brevo.com
+#   smtp_port: 587
+#   smtp_user: postmaster@mg.yourdomain.com
+#   smtp_pass: "your_smtp_api_key"
+#
 # email:
 #   smtp_host: smtp.example.com
 #   smtp_port: 587
 #   smtp_user: noreply@example.com
 #   smtp_pass: "smtp_password"
+#   # TLS options (use STARTTLS for port 587, TLS for port 465):
+#   # require_transport_security: true   # enforce TLS (recommended)
+#   # enable_tls: true                   # enable STARTTLS on port 587
 #   notif_from: "Matrix <noreply@${DOMAIN}>"
-#   enable_notifs: true
+#   enable_notifs: true      # send push notification emails for missed messages
+#   # Password reset emails are always sent if a valid SMTP config is present.
+#   # The following forces users to use the client-side reset flow instead:
+#   # password_reset_behaviour_client_side: false
 
 # ── TURN server (coturn) ──────────────────────────────────────────────────────
 # These credentials allow Synapse to hand out TURN tokens to clients.
@@ -103,7 +199,3 @@ rc_message:
   per_second: 5
   burst_count: 15
 
-# ── Federation ────────────────────────────────────────────────────────────────
-federation_domain_whitelist: null  # Allow federation with all servers
-allow_public_rooms_without_auth: false
-allow_public_rooms_over_federation: true
