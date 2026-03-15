@@ -242,8 +242,10 @@ docker compose exec -T postgres pg_dumpall -U synapse > backup-db-$(date +%F).sq
 tar czf backup-data-$(date +%F).tar.gz data/
 
 # 3. Back up Docker volumes (optional but recommended)
+#    Find the exact volume name with: docker volume ls | grep synapse_data
+SYNAPSE_VOL=$(docker volume ls -q | grep synapse_data)
 docker run --rm \
-    -v simple-matrix-element-home-server_synapse_data:/source:ro \
+    -v "${SYNAPSE_VOL}":/source:ro \
     -v "$(pwd)":/backup \
     alpine tar czf /backup/backup-synapse-volume-$(date +%F).tar.gz -C /source .
 ```
