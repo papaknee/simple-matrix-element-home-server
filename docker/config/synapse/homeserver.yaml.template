@@ -194,6 +194,12 @@ rc_login:
   account:
     per_second: 0.17
     burst_count: 3
+  # Allow a reasonable number of password retries before locking out.
+  # Synapse's built-in default is 3, which is too low for a home server:
+  # a user who mistypes their password 3 times in a row gets M_LIMIT_EXCEEDED.
+  failed_attempts:
+    per_second: 0.17
+    burst_count: 10
 
 rc_message:
   per_second: 5

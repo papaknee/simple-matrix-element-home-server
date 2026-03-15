@@ -77,8 +77,40 @@ apt-get install -y -qq matrix-synapse-py3 || {
 # ── 3. Generate Synapse config ─────────────────────────────────────────────────
 info "Generating Synapse configuration for server_name='${SYNAPSE_SERVER_NAME}'…"
 
+# Force Debian Synapse server_name to match this dev environment.
+mkdir -p "${SYNAPSE_CONFIG_DIR}/conf.d"
+cat > "${SYNAPSE_CONFIG_DIR}/conf.d/server_name.yaml" <<EOF
+# Managed by localhost/setup.sh
+server_name: ${SYNAPSE_SERVER_NAME}
+EOF
+
+# Force registration settings via Debian conf.d (authoritative on packaged installs).
+REG_SHARED_SECRET="$(python3 - <<'PY'
+import secrets
+print(secrets.token_hex(32))
+PY
+)"
+cat > "${SYNAPSE_CONFIG_DIR}/conf.d/registration.yaml" <<EOF
+# Managed by localhost/setup.sh
+enable_registration: true
+enable_registration_without_verification: true
+registration_shared_secret: "${REG_SHARED_SECRET}"
+
+# Relax login limits for localhost testing to avoid lockouts during retries.
+rc_login:
+    address:
+        per_second: 100
+        burst_count: 1000
+    account:
+        per_second: 100
+        burst_count: 1000
+    failed_attempts:
+        per_second: 100
+        burst_count: 1000
+EOF
+
 if [[ -f "${SYNAPSE_CONFIG_DIR}/homeserver.yaml" ]]; then
-    warn "homeserver.yaml already exists – skipping generation (delete it to regenerate)."
+    warn "homeserver.yaml already exists – skipping generation and patching it in place."
 else
     # Generate with built-in generator
     python3 -m synapse.app.homeserver \
@@ -92,31 +124,70 @@ else
         --generate-config \
         --report-stats=no
 
-    # Patch the generated config for local dev
-    python3 - "${SYNAPSE_CONFIG_DIR}/homeserver.yaml" <<'PYEOF'
+fi
+
+# Patch the generated/existing config for local dev
+python3 - "${SYNAPSE_CONFIG_DIR}/homeserver.yaml" <<'PYEOF'
+import secrets
 import sys, re
 
 path = sys.argv[1]
 with open(path) as f:
     text = f.read()
 
+def set_or_append(cfg, key, value):
+    pattern = rf'^#?\s*{re.escape(key)}:.*$'
+    line = f"{key}: {value}"
+    if re.search(pattern, cfg, flags=re.MULTILINE):
+        return re.sub(pattern, line, cfg, flags=re.MULTILINE)
+    if not cfg.endswith("\n"):
+        cfg += "\n"
+    return cfg + line + "\n"
+
+def set_or_replace_block(cfg, header, block):
+    # Replace an existing YAML top-level block if present, else append it.
+    pattern = rf'(?ms)^{re.escape(header)}:\n(?:^[ \t].*\n?|^\n)*'
+    if re.search(pattern, cfg):
+        return re.sub(pattern, block, cfg)
+    if not cfg.endswith("\n"):
+        cfg += "\n"
+    return cfg + "\n" + block
+
 # Enable open registration so we can create test accounts easily
-text = re.sub(r'^#?\s*enable_registration:.*$',
-              'enable_registration: true', text, flags=re.MULTILINE)
-text = re.sub(r'^#?\s*enable_registration_without_verification:.*$',
-              'enable_registration_without_verification: true', text, flags=re.MULTILINE)
+text = set_or_append(text, 'enable_registration', 'true')
+text = set_or_append(text, 'enable_registration_without_verification', 'true')
+
+# Ensure shared secret exists so register_new_matrix_user can create admin users.
+if not re.search(r'^#?\s*registration_shared_secret:.*$', text, flags=re.MULTILINE):
+    text = set_or_append(text, 'registration_shared_secret', f'"{secrets.token_hex(32)}"')
 
 # Bind to localhost only (security for dev)
 text = re.sub(r'bind_addresses:.*\n.*- .*\n',
               'bind_addresses: [\'127.0.0.1\']\n', text, flags=re.MULTILINE)
+
+# Relax login limits for localhost testing to avoid lockouts during retries.
+text = set_or_replace_block(
+        text,
+        'rc_login',
+        """rc_login:
+    address:
+        per_second: 100
+        burst_count: 1000
+    account:
+        per_second: 100
+        burst_count: 1000
+    failed_attempts:
+        per_second: 100
+        burst_count: 1000
+""",
+)
 
 with open(path, 'w') as f:
     f.write(text)
 print("Config patched for local dev.")
 PYEOF
 
-    success "Synapse config written to ${SYNAPSE_CONFIG_DIR}/homeserver.yaml"
-fi
+success "Synapse config written to ${SYNAPSE_CONFIG_DIR}/homeserver.yaml"
 
 # ── 4. Fix ownership ──────────────────────────────────────────────────────────
 chown -R matrix-synapse:matrix-synapse "${SYNAPSE_DATA_DIR}" "${SYNAPSE_CONFIG_DIR}" \
@@ -141,6 +212,25 @@ fi
 # ── 6. Write Element config for localhost ─────────────────────────────────────
 info "Writing Element config…"
 cp "${SCRIPT_DIR}/config/element-config.json" "${ELEMENT_INSTALL_DIR}/config.json"
+
+# Keep Element's expected server_name in sync with Synapse.
+python3 - "${ELEMENT_INSTALL_DIR}/config.json" "${SYNAPSE_SERVER_NAME}" <<'PYEOF'
+import json
+import sys
+
+path = sys.argv[1]
+server_name = sys.argv[2]
+
+with open(path) as f:
+    cfg = json.load(f)
+
+cfg.setdefault("default_server_config", {}).setdefault("m.homeserver", {})["server_name"] = server_name
+
+with open(path, "w") as f:
+    json.dump(cfg, f, indent=2)
+    f.write("\n")
+PYEOF
+
 success "Element config applied."
 
 # ── 7. Configure nginx ────────────────────────────────────────────────────────
@@ -204,10 +294,24 @@ fi
 # ── 9. Create a test admin account ───────────────────────────────────────────
 echo
 info "Creating a test admin user…"
-read -rp "  Admin username [admin]: " ADMIN_USER
-ADMIN_USER="${ADMIN_USER:-admin}"
-read -rsp "  Admin password: " ADMIN_PASS
-echo
+if [[ -z "${ADMIN_USER:-}" ]]; then
+    if [[ -t 0 ]]; then
+        read -rp "  Admin username [admin]: " ADMIN_USER
+        ADMIN_USER="${ADMIN_USER:-admin}"
+    else
+        ADMIN_USER="admin"
+    fi
+fi
+
+if [[ -z "${ADMIN_PASS:-}" ]]; then
+    if [[ -t 0 ]]; then
+        read -rsp "  Admin password: " ADMIN_PASS
+        echo
+    else
+        warn "No TTY detected; using default admin password for local dev."
+        ADMIN_PASS="admin"
+    fi
+fi
 
 register_new_matrix_user \
     -c "${SYNAPSE_CONFIG_DIR}/homeserver.yaml" \
