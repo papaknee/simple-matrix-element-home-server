@@ -171,7 +171,9 @@ if [[ "${FIRST_DEPLOY}" == true ]]; then
         ADMIN_USER="${ADMIN_USER:-admin}"
         read -rsp "  Admin password: " ADMIN_PASS
         echo
-        docker exec -it "$(${DC} ps -q synapse)" \
+        # Use -i only (not -t) so this works in both interactive and piped contexts
+        SYNAPSE_CONTAINER="$(${DC} ps -q synapse)"
+        docker exec -i "${SYNAPSE_CONTAINER}" \
             register_new_matrix_user \
                 -c /data/homeserver.yaml \
                 -u "${ADMIN_USER}" \

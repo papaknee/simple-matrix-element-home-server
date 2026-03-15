@@ -207,9 +207,6 @@ ADMIN_USER="${ADMIN_USER:-admin}"
 read -rsp "  Admin password: " ADMIN_PASS
 echo
 
-SHARED_SECRET=$(grep 'registration_shared_secret' \
-    "${SYNAPSE_CONFIG_DIR}/homeserver.yaml" | awk '{print $2}')
-
 register_new_matrix_user \
     -c "${SYNAPSE_CONFIG_DIR}/homeserver.yaml" \
     -u "${ADMIN_USER}" \

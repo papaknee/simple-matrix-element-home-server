@@ -112,9 +112,21 @@ ${DC} up -d nginx
 
 # ── Set up automatic renewal ──────────────────────────────────────────────────
 info "Setting up automatic certificate renewal (cron job)…"
-CRON_CMD="0 3 * * * cd ${SCRIPT_DIR} && ${DC} --profile certbot run --rm certbot renew --quiet && ${DC} exec nginx nginx -s reload"
-(crontab -l 2>/dev/null | grep -v "certbot renew"; echo "${CRON_CMD}") | crontab -
-success "Cron job added: certificate will auto-renew at 3 AM daily."
+# Detect the full path to docker / docker-compose for use in cron
+# (cron runs with a minimal PATH that usually doesn't include /usr/local/bin)
+DOCKER_BIN="$(command -v docker)"
+if [[ -z "${DOCKER_BIN}" ]]; then
+    warn "Could not find 'docker' binary. Cron job NOT installed. Set up renewal manually."
+else
+    if [[ "${DC}" == "docker compose" ]]; then
+        DC_CRON="${DOCKER_BIN} compose"
+    else
+        DC_CRON="$(command -v docker-compose)"
+    fi
+    CRON_CMD="0 3 * * * cd ${SCRIPT_DIR} && ${DC_CRON} --profile certbot run --rm certbot renew --quiet && ${DC_CRON} exec nginx nginx -s reload"
+    (crontab -l 2>/dev/null | grep -v "certbot renew"; echo "${CRON_CMD}") | crontab -
+    success "Cron job added: certificate will auto-renew at 3 AM daily."
+fi
 
 echo
 echo -e "${GREEN}======================================================${NC}"

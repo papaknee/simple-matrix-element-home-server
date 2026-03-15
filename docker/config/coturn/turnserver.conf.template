@@ -49,7 +49,10 @@ denied-peer-ip=10.0.0.0-10.255.255.255
 denied-peer-ip=172.16.0.0-172.31.255.255
 denied-peer-ip=192.168.0.0-192.168.255.255
 
-# Prevent non-relay usage of the TURN server
+# Disable UDP relay (TCP relay only) – remove this line if you want UDP relay.
+# NOTE: Removing no-tcp-relay allows clients behind UDP-blocking firewalls
+# to use TURN over TCP. Keep it to reduce attack surface if your users are
+# on open networks. For maximum compatibility, comment out no-tcp-relay.
 no-tcp-relay
 
 # ── Performance ───────────────────────────────────────────────────────────────

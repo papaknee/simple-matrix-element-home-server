@@ -152,10 +152,20 @@ docker compose logs coturn --tail=50
 stun -v matrix.example.com 3478
 
 # Check that Synapse is sending TURN credentials
+# (Replace YOUR_ACCESS_TOKEN with a real token – see below for how to obtain one)
 curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
     https://matrix.example.com/_matrix/client/v3/voip/turnServer
 # Expected: {"uris": [...], "username": "...", "password": "..."}
 ```
+
+> **Getting an access token**: In Element, go to **Settings → Help & About → scroll down → Access Token**.
+> Alternatively, use the login API:
+> ```bash
+> curl -X POST https://matrix.example.com/_matrix/client/v3/login \
+>   -H "Content-Type: application/json" \
+>   -d '{"type":"m.login.password","user":"YOUR_USER","password":"YOUR_PASS"}'
+> # The response contains "access_token"
+> ```
 
 **Common causes:**
 - coturn TURN port range not open in firewall/router (`49152–65535 UDP`)

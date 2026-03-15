@@ -34,7 +34,7 @@ services:
 
   # ── PostgreSQL ───────────────────────────────────────────────────────────────
   postgres:
-    image: postgres:16-alpine
+    image: postgres:16.6-alpine
     restart: unless-stopped
     networks: [matrix]
     environment:
