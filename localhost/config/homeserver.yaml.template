@@ -33,7 +33,10 @@ log_config: "/etc/matrix-synapse/log.yaml"
 
 media_store_path: /var/lib/matrix-synapse/media
 
-# Allow open registration in the dev environment (DISABLE in production)
+# ── Registration ──────────────────────────────────────────────────────────────
+# Allow open registration in the dev environment (DISABLE in production).
+# See docker/config/synapse/homeserver.yaml.template for all registration
+# options including captcha, email verification, and invite tokens.
 enable_registration: true
 enable_registration_without_verification: true
 
@@ -43,12 +46,17 @@ enable_registration_without_verification: true
 
 report_stats: false
 
-# Trusted key servers for federation
+# ── Federation ────────────────────────────────────────────────────────────────
+# Trusted key servers for federation.
 trusted_key_servers:
   - server_name: "matrix.org"
 
 # Optional: suppress the nag about trusted_key_servers
 suppress_key_server_warning: true
+
+# To disable federation entirely (fully private server), change to:
+#   federation_domain_whitelist: []
+# and change listener resources above from [client, federation] to [client].
 
 # Enable group call support (MSC3401) – useful even in dev
 experimental_features:

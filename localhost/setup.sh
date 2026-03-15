@@ -47,6 +47,19 @@ apt-get install -y -qq \
     libxslt1-dev zlib1g-dev build-essential
 
 # ── 2. Matrix Synapse (from matrix.org Debian repo) ───────────────────────────
+
+# ── 2a. Fallback: install Synapse via pip in a virtualenv ─────────────────────
+# (must be defined before the apt-get || fallback below)
+_install_synapse_pip() {
+    local venv="/opt/synapse-venv"
+    python3 -m venv "${venv}"
+    "${venv}/bin/pip" install --quiet --upgrade pip
+    "${venv}/bin/pip" install --quiet "matrix-synapse[all]"
+    ln -sf "${venv}/bin/synapse_homeserver" /usr/local/bin/synapse_homeserver
+    ln -sf "${venv}/bin/register_new_matrix_user" /usr/local/bin/register_new_matrix_user
+    mkdir -p "${SYNAPSE_CONFIG_DIR}" "${SYNAPSE_DATA_DIR}"
+}
+
 DEBIAN_CODENAME="$(lsb_release -sc)"
 info "Adding Matrix.org apt repository (codename: ${DEBIAN_CODENAME})…"
 wget -qO /usr/share/keyrings/matrix-org-archive-keyring.gpg \
@@ -59,17 +72,6 @@ apt-get update -qq
 apt-get install -y -qq matrix-synapse-py3 || {
     warn "matrix-synapse-py3 not available for ${DEBIAN_CODENAME}, falling back to pip install…"
     _install_synapse_pip
-}
-
-# ── 2a. Fallback: install Synapse via pip in a virtualenv ─────────────────────
-_install_synapse_pip() {
-    local venv="/opt/synapse-venv"
-    python3 -m venv "${venv}"
-    "${venv}/bin/pip" install --quiet --upgrade pip
-    "${venv}/bin/pip" install --quiet "matrix-synapse[all]"
-    ln -sf "${venv}/bin/synapse_homeserver" /usr/local/bin/synapse_homeserver
-    ln -sf "${venv}/bin/register_new_matrix_user" /usr/local/bin/register_new_matrix_user
-    mkdir -p "${SYNAPSE_CONFIG_DIR}" "${SYNAPSE_DATA_DIR}"
 }
 
 # ── 3. Generate Synapse config ─────────────────────────────────────────────────

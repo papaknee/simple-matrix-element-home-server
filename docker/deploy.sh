@@ -192,6 +192,7 @@ fi
 
 echo
 success "Deployment finished."
-echo "  Matrix API   →  http${SSL_ENABLED:+s}://${DOMAIN}/_matrix/"
-echo "  Element Web  →  http${SSL_ENABLED:+s}://${DOMAIN}/"
+[[ "${SSL_ENABLED:-false}" == "true" ]] && _proto="https" || _proto="http"
+echo "  Matrix API   →  ${_proto}://${DOMAIN}/_matrix/"
+echo "  Element Web  →  ${_proto}://${DOMAIN}/"
 echo
