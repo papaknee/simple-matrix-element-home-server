@@ -140,20 +140,10 @@ sudo bash teardown.sh
 ```bash
 cd docker/
 
-# 1. Copy and fill in the environment file
-cp .env.example .env
-nano .env    # Set DOMAIN, LETSENCRYPT_EMAIL, POSTGRES_PASSWORD, etc.
+# 1. Generate your .env (asks for domain, email, and DB password;
+#    all secrets are created automatically)
+bash init-env.sh
 ```
-
-**Minimum required settings in `.env`:**
-```env
-DOMAIN=matrix.example.com
-LETSENCRYPT_EMAIL=admin@example.com
-POSTGRES_PASSWORD=choose_a_strong_password
-```
-
-> All other secrets (COTURN_SECRET, MACAROON_SECRET_KEY, etc.) are
-> **auto-generated** by `deploy.sh` on first run if left as placeholders.
 
 ```bash
 # 2. Run the first deployment (HTTP only – no SSL yet)
@@ -341,7 +331,8 @@ simple-matrix-element-home-server/
 │
 ├── docker/                          ← Production Docker environment
 │   ├── docker-compose.yml           ← All services
-│   ├── .env.example                 ← Copy to .env and fill in
+│   ├── .env.example                 ← Settings reference (do not edit directly)
+│   ├── init-env.sh                  ← Create .env interactively (run this first)
 │   ├── deploy.sh                    ← First deploy + update-aware
 │   ├── update.sh                    ← Pull new images, preserve data
 │   ├── init-letsencrypt.sh          ← One-time SSL cert request

@@ -52,12 +52,12 @@ cd "${SCRIPT_DIR}"
 
 # ── Load / validate .env ──────────────────────────────────────────────────────
 [[ -f "${ENV_FILE}" ]] || {
-    warn ".env not found. Copying .env.example → .env …"
-    cp .env.example .env
-    die "Please edit .env with your domain, email, and secrets, then re-run deploy.sh"
+    warn ".env not found."
+    die "Run ./init-env.sh first to create your .env with all required secrets, then re-run deploy.sh"
 }
+# Export all variables so child processes (envsubst, docker, etc.) can see them.
 # shellcheck disable=SC1090
-source "${ENV_FILE}"
+set -a; source "${ENV_FILE}"; set +a
 
 [[ -z "${DOMAIN:-}" ]]            && die "DOMAIN is not set in .env"
 [[ "${DOMAIN}" == *"example.com"* ]] && die "DOMAIN still contains 'example.com'. Set a real domain in .env"
@@ -79,9 +79,9 @@ if [[ "${FIRST_DEPLOY}" == true ]]; then
     sed -i "s|^COTURN_SECRET=.*CHANGE_ME.*|COTURN_SECRET=$(gen_secret)|"                           "${ENV_FILE}"
     sed -i "s|^LIVEKIT_API_KEY=.*CHANGE_ME.*|LIVEKIT_API_KEY=$(gen_short)|"                       "${ENV_FILE}"
     sed -i "s|^LIVEKIT_API_SECRET=.*CHANGE_ME.*|LIVEKIT_API_SECRET=$(gen_secret)|"                "${ENV_FILE}"
-    # Reload after edits
+    # Reload after edits (keep export so envsubst sees the new values)
     # shellcheck disable=SC1090
-    source "${ENV_FILE}"
+    set -a; source "${ENV_FILE}"; set +a
     success "Secrets generated and saved to .env"
 fi
 
@@ -156,7 +156,7 @@ if [[ "${FIRST_DEPLOY}" == true ]]; then
     echo
     echo "  When you are satisfied with the above, run:"
     echo
-    echo "    ${YELLOW}./init-letsencrypt.sh${NC}"
+    echo -e "    ${YELLOW}./init-letsencrypt.sh${NC}"
     echo
     echo "  to obtain SSL certificates. This only needs to be done ONCE."
     echo "  ⚠  Let's Encrypt rate-limits certificate requests (5 per domain per week)."
@@ -171,8 +171,17 @@ if [[ "${FIRST_DEPLOY}" == true ]]; then
         ADMIN_USER="${ADMIN_USER:-admin}"
         read -rsp "  Admin password: " ADMIN_PASS
         echo
-        # Use -i only (not -t) so this works in both interactive and piped contexts
+        # Wait for Synapse to become healthy before registering a user.
+        info "Waiting for Synapse to be ready…"
         SYNAPSE_CONTAINER="$(${DC} ps -q synapse)"
+        for _i in $(seq 1 24); do
+            if docker exec "${SYNAPSE_CONTAINER}" curl -sf http://localhost:8008/health >/dev/null 2>&1; then
+                break
+            fi
+            [[ "${_i}" -eq 24 ]] && { warn "Synapse did not become healthy in time. Try user creation manually."; break; }
+            sleep 5
+        done
+        # Use -i only (not -t) so this works in both interactive and piped contexts
         docker exec -i "${SYNAPSE_CONTAINER}" \
             register_new_matrix_user \
                 -c /data/homeserver.yaml \
