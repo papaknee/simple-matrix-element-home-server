@@ -1,0 +1,63 @@
+# =============================================================================
+# docker/config/livekit/livekit.yaml.template
+# LiveKit SFU (Selective Forwarding Unit) configuration.
+# Rendered by deploy.sh; output goes to data/livekit/livekit.yaml
+#
+# LiveKit provides scalable multi-party video and screen sharing.
+# It replaces the peer-to-peer mesh model, allowing many participants
+# without exponential bandwidth growth for each participant.
+# =============================================================================
+
+port: 7880
+
+# ── WebRTC / ICE ──────────────────────────────────────────────────────────────
+rtc:
+  # UDP port range for media (must be open in firewall/router)
+  udp_port: 7882
+  tcp_port: 7881
+  use_external_ip: true
+
+  # Prefer UDP for lower latency video
+  ice_servers:
+    - urls:
+        - turn:${DOMAIN}:3478?transport=udp
+        - turn:${DOMAIN}:3478?transport=tcp
+        - turns:${DOMAIN}:5349?transport=tcp
+      username: livekit
+      credential: ${COTURN_SECRET}
+
+# ── API Authentication ────────────────────────────────────────────────────────
+keys:
+  ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
+
+# ── TURN integration ──────────────────────────────────────────────────────────
+# LiveKit can generate TURN credentials using the coturn shared secret.
+turn:
+  enabled: true
+  domain: ${DOMAIN}
+  tls_port: 5349
+  udp_port: 3478
+  external_tls: true
+
+# ── Logging ───────────────────────────────────────────────────────────────────
+logging:
+  json: true
+  level: info
+
+# ── Room settings ─────────────────────────────────────────────────────────────
+room:
+  # Enable automatic track subscription for new participants
+  auto_create: true
+  # Maximum video bitrate per participant (Kbps)
+  max_bitrate: 3000000
+
+# ── Video codec preferences ───────────────────────────────────────────────────
+# VP8 is universally supported; AV1 is the most efficient if your clients
+# support it (latest Chrome/Firefox). For best compatibility, use VP8/VP9.
+video:
+  # Preferred codec ordering
+  codec: vp9
+
+# ── Screen sharing ────────────────────────────────────────────────────────────
+# LiveKit handles screen sharing as a standard video track.
+# No special config required – it's enabled by default.

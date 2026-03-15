@@ -1,0 +1,32 @@
+version: 1
+
+formatters:
+  precise:
+    format: '%(asctime)s - %(name)s - %(lineno)d - %(levelname)s - %(request)s - %(message)s'
+
+handlers:
+  console:
+    class: logging.StreamHandler
+    formatter: precise
+    level: INFO
+
+  file:
+    class: logging.handlers.TimedRotatingFileHandler
+    formatter: precise
+    filename: /data/homeserver.log
+    when: midnight
+    backupCount: 7
+    encoding: utf8
+    level: INFO
+
+loggers:
+  synapse.storage.SQL:
+    # Uncomment to enable SQL query logging (very verbose)
+    # level: DEBUG
+    level: WARNING
+
+root:
+  level: INFO
+  handlers: [console, file]
+
+disable_existing_loggers: false

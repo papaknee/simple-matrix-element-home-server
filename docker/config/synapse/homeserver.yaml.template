@@ -1,0 +1,109 @@
+# =============================================================================
+# docker/config/synapse/homeserver.yaml.template
+# Production Synapse configuration.
+# Rendered by deploy.sh using envsubst; output goes to data/synapse/homeserver.yaml
+# Do NOT edit data/synapse/homeserver.yaml directly – edit this template.
+# =============================================================================
+
+# ── Identity ───────────────────────────────────────────────────────────────────
+server_name: "${DOMAIN}"
+pid_file: /data/homeserver.pid
+
+# ── Listeners ─────────────────────────────────────────────────────────────────
+# Synapse listens on 8008 (HTTP). nginx terminates TLS and proxies here.
+listeners:
+  - port: 8008
+    tls: false
+    type: http
+    x_forwarded: true
+    resources:
+      - names: [client, federation]
+        compress: false
+
+# ── Database (PostgreSQL) ──────────────────────────────────────────────────────
+database:
+  name: psycopg2
+  args:
+    user: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+    database: ${POSTGRES_DB}
+    host: postgres
+    cp_min: 5
+    cp_max: 10
+
+# ── Storage ───────────────────────────────────────────────────────────────────
+media_store_path: /data/media_store
+uploads_path: /data/uploads
+log_config: "/data/log.config"
+
+# ── Signing / security ────────────────────────────────────────────────────────
+# signing_key_path is auto-generated on first run by Synapse
+signing_key_path: "/data/${DOMAIN}.signing.key"
+macaroon_secret_key: "${MACAROON_SECRET_KEY}"
+form_secret: "${FORM_SECRET}"
+registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
+
+# ── Registration ──────────────────────────────────────────────────────────────
+# Set to true only if you want open registration. Consider require_auth below.
+enable_registration: false
+enable_registration_without_verification: false
+
+# ── Trusted key servers ───────────────────────────────────────────────────────
+trusted_key_servers:
+  - server_name: "matrix.org"
+suppress_key_server_warning: false
+
+# ── Reporting ─────────────────────────────────────────────────────────────────
+report_stats: false
+
+# ── Email (optional – leave blank to disable) ─────────────────────────────────
+# email:
+#   smtp_host: smtp.example.com
+#   smtp_port: 587
+#   smtp_user: noreply@example.com
+#   smtp_pass: "smtp_password"
+#   notif_from: "Matrix <noreply@${DOMAIN}>"
+#   enable_notifs: true
+
+# ── TURN server (coturn) ──────────────────────────────────────────────────────
+# These credentials allow Synapse to hand out TURN tokens to clients.
+# Clients use TURN to traverse NAT for 1:1 WebRTC voice/video calls.
+turn_uris:
+  - "turn:${DOMAIN}:3478?transport=udp"
+  - "turn:${DOMAIN}:3478?transport=tcp"
+  - "turns:${DOMAIN}:5349?transport=tcp"
+turn_shared_secret: "${COTURN_SECRET}"
+turn_user_lifetime: 86400000
+turn_allow_guests: true
+
+# ── Experimental features ─────────────────────────────────────────────────────
+experimental_features:
+  # MSC3401 – Native group calls (used by Element Call / LiveKit SFU)
+  msc3401:
+    default: false
+    allow: true
+  # MSC3886 – HTTP Proxying for WebRTC
+  msc3886:
+    enabled: true
+
+# ── Push rules / presence ─────────────────────────────────────────────────────
+presence:
+  enabled: true
+
+# ── Rate limits (relaxed for home server single-tenant use) ──────────────────
+rc_login:
+  address:
+    per_second: 0.17
+    burst_count: 3
+  account:
+    per_second: 0.17
+    burst_count: 3
+
+rc_message:
+  per_second: 5
+  burst_count: 15
+
+# ── Federation ────────────────────────────────────────────────────────────────
+federation_domain_whitelist: null  # Allow federation with all servers
+allow_public_rooms_without_auth: false
+allow_public_rooms_over_federation: true

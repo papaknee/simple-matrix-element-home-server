@@ -1,0 +1,17 @@
+# Environment files (contain secrets – NEVER commit these)
+docker/.env
+docker/data/
+
+# Synapse signing keys and generated secrets
+*.signing.key
+*.log
+
+# Editor / OS noise
+.DS_Store
+.vscode/
+*.swp
+*.swo
+*~
+
+# Temporary files
+/tmp/
