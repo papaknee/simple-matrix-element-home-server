@@ -79,6 +79,15 @@ Group calls:   Element → Element Call widget
 - Your machine's public IP reachable from the internet
 - Ports 80, 443, 8448, 3478, 5349, 7882 forwarded on your router
 
+#### Recommended hardware
+| Resource | Minimum | Recommended |
+|----------|---------|-------------|
+| CPU | 1 core | 2+ cores |
+| RAM | 1 GB | 2 GB+ |
+| Disk | 10 GB | 20 GB+ (media files grow over time) |
+
+> Actual requirements depend on number of users, media uploads, and group-call usage. A small family/team server (5–10 users) runs comfortably on 1 CPU / 1 GB RAM.
+
 ---
 
 ## Quick Start
@@ -211,6 +220,37 @@ bash update.sh
 ```
 
 This runs `docker compose pull` + `docker compose up -d --remove-orphans`. The `./data/` directory and all named volumes are preserved.
+
+---
+
+## Backing up your data
+
+Your server stores data in two places. Back both up regularly:
+
+1. **`docker/data/`** – rendered config files and signing keys.
+2. **Docker named volumes** – the PostgreSQL database, Synapse media store, and Let's Encrypt certificates.
+
+### Quick backup
+
+```bash
+cd docker/
+
+# 1. Dump the PostgreSQL database
+docker compose exec -T postgres pg_dumpall -U synapse > backup-db-$(date +%F).sql
+
+# 2. Copy config / keys / media
+tar czf backup-data-$(date +%F).tar.gz data/
+
+# 3. Back up Docker volumes (optional but recommended)
+#    Find the exact volume name with: docker volume ls | grep synapse_data
+SYNAPSE_VOL=$(docker volume ls -q | grep synapse_data)
+docker run --rm \
+    -v "${SYNAPSE_VOL}":/source:ro \
+    -v "$(pwd)":/backup \
+    alpine tar czf /backup/backup-synapse-volume-$(date +%F).tar.gz -C /source .
+```
+
+Store the resulting files somewhere safe (external drive, remote server, etc.). To restore, reverse the process: load the SQL dump with `psql`, extract the tarball back to `data/`, and recreate volumes from the archives.
 
 ---
 
