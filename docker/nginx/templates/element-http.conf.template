@@ -1,0 +1,4 @@
+# element-http.conf.template
+# Element Web routing is handled within matrix-http.conf.template
+# (the "location /" block proxies to the element container).
+# This file intentionally contains no server blocks to avoid conflicts.

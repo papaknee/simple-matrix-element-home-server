@@ -1,0 +1,26 @@
+# =============================================================================
+# docker/config/lk-jwt/config.yaml.template
+# lk-jwt-service configuration.
+# Rendered by deploy.sh; output goes to data/lk-jwt/config.yaml
+#
+# lk-jwt-service bridges Matrix authentication with LiveKit:
+#   1. Element requests a LiveKit JWT from this service.
+#   2. This service validates the Matrix access token against Synapse.
+#   3. If valid, it returns a signed LiveKit JWT.
+#   4. Element uses that JWT to connect directly to the LiveKit SFU.
+# =============================================================================
+
+# Port this service listens on (proxied through nginx at /_matrix/client/unstable/...)
+port: 8080
+
+livekit:
+  # LiveKit server WebSocket URL (internal Docker network)
+  url: ws://livekit:7880
+  api_key: ${LIVEKIT_API_KEY}
+  api_secret: ${LIVEKIT_API_SECRET}
+
+matrix:
+  # Synapse homeserver URL (internal Docker network)
+  homeserver: http://synapse:8008
+  # Public URL (used to verify tokens issued by this homeserver)
+  server_name: ${DOMAIN}

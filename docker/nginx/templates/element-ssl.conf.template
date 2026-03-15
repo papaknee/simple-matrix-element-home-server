@@ -1,0 +1,5 @@
+# element-ssl.conf.template  –  HTTPS Element Web
+# Note: the main Matrix server block (matrix-ssl.conf.template) handles the
+# domain's HTTPS vhost; Element is served at the root path "/" of that same
+# vhost (handled in matrix-ssl.conf.template via proxy_pass http://element).
+# This file is intentionally empty – Element routing is part of the matrix block.
