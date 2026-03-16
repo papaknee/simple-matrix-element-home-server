@@ -240,3 +240,8 @@ echo "  Matrix API   →  ${_proto}://${MATRIX_DOMAIN}/_matrix/"
 echo "  Element Web  →  ${_proto}://${ELEMENT_DOMAIN}/"
 echo "  LiveKit WS   →  ${_proto}://${LIVEKIT_DOMAIN}/"
 echo
+echo -e "${YELLOW}Next steps:${NC}"
+echo "  1. (If first deploy) Run:  ${YELLOW}bash init-letsencrypt.sh${NC}  to enable HTTPS"
+echo "  2. (Recommended) Run:      ${YELLOW}sudo bash enable-autostart.sh${NC}  to auto-start on reboot"
+echo "  3. See README.md for backup and user management instructions."
+echo

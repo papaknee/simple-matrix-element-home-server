@@ -206,6 +206,52 @@ After this, your services are accessible at `https://matrix.example.com`, `https
 
 ---
 
+### Phase 4 – Enable Automatic Restart on Reboot
+
+By default, Docker containers with `restart: unless-stopped` will auto-restart if they crash, but **not after a full system reboot** unless the Docker daemon itself is set to start on boot and something brings up the docker-compose stack.
+
+To fully automate this, use the included `enable-autostart.sh` script:
+
+```bash
+cd docker/
+sudo bash enable-autostart.sh
+```
+
+This script will:
+1. **Enable Docker daemon on boot** — ensures Docker itself starts when the system reboots
+2. **Create a systemd service** — automatically runs `docker compose up -d` on boot
+3. **Enable the service** — registers it to auto-start
+
+After running the script, your entire Matrix server stack will **automatically start whenever the system reboots**, with no manual intervention needed.
+
+#### Verify the setup
+
+```bash
+# Check if the auto-start service is enabled
+sudo systemctl is-enabled matrix-docker-compose
+
+# View the status
+sudo systemctl status matrix-docker-compose
+
+# View logs (helpful for debugging)
+sudo journalctl -u matrix-docker-compose -f
+```
+
+#### Manual control (if needed)
+
+```bash
+# Manually start the stack
+sudo systemctl start matrix-docker-compose
+
+# Manually stop the stack
+sudo systemctl stop matrix-docker-compose
+
+# Disable auto-start (keeps Docker running, but not the Matrix stack)
+sudo systemctl disable matrix-docker-compose
+```
+
+---
+
 ## Updating to a new version
 
 All configuration files and data are stored in `docker/data/` and Docker volumes. Updates only pull new images – **your data is never touched.**
