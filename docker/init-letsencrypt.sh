@@ -33,7 +33,10 @@ cd "${SCRIPT_DIR}"
 # shellcheck disable=SC1091
 source .env
 
-[[ -z "${DOMAIN:-}" ]]            && die "DOMAIN is not set in .env"
+[[ -z "${MATRIX_DOMAIN:-}" ]]     && die "MATRIX_DOMAIN is not set in .env"
+[[ -z "${ELEMENT_DOMAIN:-}" ]]    && die "ELEMENT_DOMAIN is not set in .env"
+[[ -z "${LIVEKIT_DOMAIN:-}" ]]    && die "LIVEKIT_DOMAIN is not set in .env"
+[[ -z "${TURN_DOMAIN:-}" ]]       && die "TURN_DOMAIN is not set in .env"
 [[ -z "${LETSENCRYPT_EMAIL:-}" ]] && die "LETSENCRYPT_EMAIL is not set in .env"
 
 if docker compose version &>/dev/null 2>&1; then
@@ -45,14 +48,14 @@ else
 fi
 
 # ── Safety checks ─────────────────────────────────────────────────────────────
-CERT_PATH="${DATA_DIR}/letsencrypt/live/${DOMAIN}"
+CERT_PATH="${DATA_DIR}/letsencrypt/live/${MATRIX_DOMAIN}"
 # We actually use the named volume – check via Docker
 # Use docker compose to check via the certbot container (uses the named volume correctly)
 CERT_EXISTS=$(${DC} --profile certbot run --rm --no-deps certbot \
-    sh -c "[ -f /etc/letsencrypt/live/${DOMAIN}/fullchain.pem ] && echo yes || echo no" 2>/dev/null || echo "no")
+    sh -c "[ -f /etc/letsencrypt/live/${MATRIX_DOMAIN}/fullchain.pem ] && echo yes || echo no" 2>/dev/null || echo "no")
 
 if [[ "${CERT_EXISTS}" == "yes" ]]; then
-    warn "Certificate for ${DOMAIN} already exists!"
+    warn "Certificate for ${MATRIX_DOMAIN} already exists!"
     read -rp "  Renew / replace it? (This counts against rate limits) [y/N] " CONFIRM
     [[ "${CONFIRM,,}" == "y" ]] || { echo "Aborted."; exit 0; }
 fi
@@ -62,7 +65,10 @@ echo -e "${YELLOW}╔═══════════════════�
 echo -e "${YELLOW}║           Let's Encrypt Certificate Request                 ║${NC}"
 echo -e "${YELLOW}╚══════════════════════════════════════════════════════════════╝${NC}"
 echo
-echo "  Domain : ${DOMAIN}"
+echo "  Matrix  : ${MATRIX_DOMAIN}"
+echo "  Element : ${ELEMENT_DOMAIN}"
+echo "  LiveKit : ${LIVEKIT_DOMAIN}"
+echo "  TURN    : ${TURN_DOMAIN}"
 echo "  Email  : ${LETSENCRYPT_EMAIL}"
 echo
 warn "RATE LIMIT: 5 certificates per domain per week."
@@ -86,7 +92,7 @@ ${DC} up -d nginx
 sleep 3
 
 # ── Run certbot ───────────────────────────────────────────────────────────────
-info "Requesting certificate for ${DOMAIN} and www.${DOMAIN}…"
+info "Requesting SAN certificate for Matrix/Element/LiveKit/TURN domains…"
 ${DC} --profile certbot run --rm certbot \
     certonly \
     --webroot \
@@ -95,8 +101,10 @@ ${DC} --profile certbot run --rm certbot \
     --agree-tos \
     --no-eff-email \
     ${STAGING_ARG} \
-    -d "${DOMAIN}" \
-    -d "www.${DOMAIN}"
+    -d "${MATRIX_DOMAIN}" \
+    -d "${ELEMENT_DOMAIN}" \
+    -d "${LIVEKIT_DOMAIN}" \
+    -d "${TURN_DOMAIN}"
 
 success "Certificate obtained!"
 
@@ -133,10 +141,12 @@ echo -e "${GREEN}======================================================${NC}"
 echo -e "${GREEN}  SSL setup complete!                                ${NC}"
 echo -e "${GREEN}======================================================${NC}"
 echo
-echo "  Matrix API   →  https://${DOMAIN}/_matrix/"
-echo "  Element Web  →  https://${DOMAIN}/"
+echo "  Matrix API   →  https://${MATRIX_DOMAIN}/_matrix/"
+echo "  Element Web  →  https://${ELEMENT_DOMAIN}/"
+echo "  LiveKit WS   →  https://${LIVEKIT_DOMAIN}/"
+echo "  TURN realm   →  ${TURN_DOMAIN}"
 echo
 echo "  Next steps:"
-echo "   • Update your Matrix client to use 'https://${DOMAIN}'"
+echo "   • Update your Matrix client to use 'https://${MATRIX_DOMAIN}'"
 echo "   • Federation should now work from other Matrix servers"
 echo

@@ -59,8 +59,12 @@ cd "${SCRIPT_DIR}"
 # shellcheck disable=SC1090
 set -a; source "${ENV_FILE}"; set +a
 
-[[ -z "${DOMAIN:-}" ]]            && die "DOMAIN is not set in .env"
-[[ "${DOMAIN}" == *"example.com"* ]] && die "DOMAIN still contains 'example.com'. Set a real domain in .env"
+[[ -z "${ROOT_DOMAIN:-}" ]] && die "ROOT_DOMAIN is not set in .env"
+[[ "${ROOT_DOMAIN}" == *"example.com"* ]] && die "ROOT_DOMAIN still contains 'example.com'. Set a real domain in .env"
+[[ -z "${MATRIX_DOMAIN:-}" ]] && die "MATRIX_DOMAIN is not set in .env"
+[[ -z "${ELEMENT_DOMAIN:-}" ]] && die "ELEMENT_DOMAIN is not set in .env"
+[[ -z "${LIVEKIT_DOMAIN:-}" ]] && die "LIVEKIT_DOMAIN is not set in .env"
+[[ -z "${TURN_DOMAIN:-}" ]] && die "TURN_DOMAIN is not set in .env"
 [[ -z "${LETSENCRYPT_EMAIL:-}" ]] && die "LETSENCRYPT_EMAIL is not set in .env"
 [[ -z "${POSTGRES_PASSWORD:-}" || "${POSTGRES_PASSWORD}" == "CHANGE_ME"* ]] \
     && die "POSTGRES_PASSWORD is not set (or still the placeholder) in .env"
@@ -116,11 +120,11 @@ if [[ "${FIRST_DEPLOY}" == true ]]; then
 fi
 
 # ── Generate Synapse signing key (only on first deploy) ───────────────────────
-if [[ "${FIRST_DEPLOY}" == true && ! -f "${DATA_DIR}/synapse/${DOMAIN}.signing.key" ]]; then
+if [[ "${FIRST_DEPLOY}" == true && ! -f "${DATA_DIR}/synapse/${MATRIX_DOMAIN}.signing.key" ]]; then
     info "Generating Synapse signing key…"
     docker run --rm \
         -v "${DATA_DIR}/synapse:/data" \
-        -e "SYNAPSE_SERVER_NAME=${DOMAIN}" \
+        -e "SYNAPSE_SERVER_NAME=${MATRIX_DOMAIN}" \
         -e "SYNAPSE_REPORT_STATS=no" \
         matrixdotorg/synapse:latest generate 2>/dev/null | tail -5
     success "Signing key generated."
@@ -147,12 +151,13 @@ if [[ "${FIRST_DEPLOY}" == true ]]; then
     echo
     echo "  Before requesting SSL certificates from Let's Encrypt, please verify:"
     echo
-    echo "  1. Your domain '${DOMAIN}' has a DNS A record pointing to this machine's"
+    echo "  1. Your domains '${MATRIX_DOMAIN}', '${ELEMENT_DOMAIN}', '${LIVEKIT_DOMAIN}', and '${TURN_DOMAIN}'"
+    echo "     have DNS A records pointing to this machine's"
     echo "     public IP address (see docs/domain-setup.md)."
     echo "  2. Ports 80 and 443 are forwarded from your router to this machine"
     echo "     (see docs/router-setup.md)."
     echo "  3. The Matrix server responds correctly:"
-    echo "       curl http://${DOMAIN}/_matrix/client/versions"
+    echo "       curl http://${MATRIX_DOMAIN}/_matrix/client/versions"
     echo
     echo "  When you are satisfied with the above, run:"
     echo
@@ -189,7 +194,7 @@ if [[ "${FIRST_DEPLOY}" == true ]]; then
                 -p "${ADMIN_PASS}" \
                 -a \
                 http://localhost:8008 \
-            && success "Admin user '@${ADMIN_USER}:${DOMAIN}' created." \
+            && success "Admin user '@${ADMIN_USER}:${MATRIX_DOMAIN}' created." \
             || warn "Could not create user automatically. See README for manual steps."
     fi
 else
@@ -202,6 +207,7 @@ fi
 echo
 success "Deployment finished."
 [[ "${SSL_ENABLED:-false}" == "true" ]] && _proto="https" || _proto="http"
-echo "  Matrix API   →  ${_proto}://${DOMAIN}/_matrix/"
-echo "  Element Web  →  ${_proto}://${DOMAIN}/"
+echo "  Matrix API   →  ${_proto}://${MATRIX_DOMAIN}/_matrix/"
+echo "  Element Web  →  ${_proto}://${ELEMENT_DOMAIN}/"
+echo "  LiveKit WS   →  ${_proto}://${LIVEKIT_DOMAIN}/"
 echo

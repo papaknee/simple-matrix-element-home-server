@@ -1,4 +1,21 @@
 # element-http.conf.template
-# Element Web routing is handled within matrix-http.conf.template
-# (the "location /" block proxies to the element container).
-# This file intentionally contains no server blocks to avoid conflicts.
+# HTTP-only Element Web reverse proxy.
+
+server {
+    listen 80;
+    server_name ${ELEMENT_DOMAIN};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        proxy_pass http://element:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        add_header X-Content-Type-Options nosniff;
+        add_header X-Frame-Options SAMEORIGIN;
+    }
+}

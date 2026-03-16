@@ -6,7 +6,7 @@
 # =============================================================================
 
 # ── Identity ───────────────────────────────────────────────────────────────────
-server_name: "${DOMAIN}"
+server_name: "${MATRIX_DOMAIN}"
 pid_file: /data/homeserver.pid
 
 # ── Listeners ─────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ log_config: "/data/log.config"
 
 # ── Signing / security ────────────────────────────────────────────────────────
 # signing_key_path is auto-generated on first run by Synapse
-signing_key_path: "/data/${DOMAIN}.signing.key"
+signing_key_path: "/data/${MATRIX_DOMAIN}.signing.key"
 macaroon_secret_key: "${MACAROON_SECRET_KEY}"
 form_secret: "${FORM_SECRET}"
 registration_shared_secret: "${REGISTRATION_SHARED_SECRET}"
@@ -82,7 +82,7 @@ enable_registration_without_verification: false
 
 # OPTION E: Registration tokens (invite codes)
 #   Only users with a valid token can register. Tokens are created via the Admin API:
-#     curl -X POST https://${DOMAIN}/_synapse/admin/v1/registration_tokens/new \
+#     curl -X POST https://${MATRIX_DOMAIN}/_synapse/admin/v1/registration_tokens/new \
 #       -H "Authorization: Bearer ADMIN_ACCESS_TOKEN" \
 #       -H "Content-Type: application/json" \
 #       -d '{"uses_allowed": 1}'
@@ -155,7 +155,7 @@ allow_public_rooms_over_federation: true
 #   # TLS options (use STARTTLS for port 587, TLS for port 465):
 #   # require_transport_security: true   # enforce TLS (recommended)
 #   # enable_tls: true                   # enable STARTTLS on port 587
-#   notif_from: "Matrix <noreply@${DOMAIN}>"
+#   notif_from: "Matrix <noreply@${MATRIX_DOMAIN}>"
 #   enable_notifs: true      # send push notification emails for missed messages
 #   # Password reset emails are always sent if a valid SMTP config is present.
 #   # The following forces users to use the client-side reset flow instead:
@@ -165,9 +165,9 @@ allow_public_rooms_over_federation: true
 # These credentials allow Synapse to hand out TURN tokens to clients.
 # Clients use TURN to traverse NAT for 1:1 WebRTC voice/video calls.
 turn_uris:
-  - "turn:${DOMAIN}:3478?transport=udp"
-  - "turn:${DOMAIN}:3478?transport=tcp"
-  - "turns:${DOMAIN}:5349?transport=tcp"
+  - "turn:${TURN_DOMAIN}:3478?transport=udp"
+  - "turn:${TURN_DOMAIN}:3478?transport=tcp"
+  - "turns:${TURN_DOMAIN}:5349?transport=tcp"
 turn_shared_secret: "${COTURN_SECRET}"
 turn_user_lifetime: 86400000
 turn_allow_guests: true

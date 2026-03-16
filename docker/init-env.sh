@@ -11,7 +11,11 @@
 # Usage:
 #   ./init-env.sh               # interactive
 #   ./init-env.sh --force       # overwrite existing .env
-#   DOMAIN=matrix.example.com \
+#   ROOT_DOMAIN=example.com \
+#   MATRIX_DOMAIN=matrix.example.com \
+#   ELEMENT_DOMAIN=element.example.com \
+#   LIVEKIT_DOMAIN=livekit.example.com \
+#   TURN_DOMAIN=turn.example.com \
 #   LETSENCRYPT_EMAIL=me@example.com \
 #   POSTGRES_PASSWORD=secret \
 #   ./init-env.sh               # fully non-interactive (CI / automation)
@@ -51,11 +55,17 @@ echo "  You only need to provide three values:"
 echo
 
 # Allow non-interactive use via environment variables
-if [[ -z "${DOMAIN:-}" ]]; then
-    read -rp "  1. Your Matrix domain (e.g. matrix.example.com): " DOMAIN
+if [[ -z "${ROOT_DOMAIN:-}" ]]; then
+    read -rp "  1. Your root domain (e.g. example.com): " ROOT_DOMAIN
 fi
-[[ -z "${DOMAIN}" ]] && die "DOMAIN cannot be empty."
-[[ "${DOMAIN}" == *"example.com"* ]] && die "That still looks like the placeholder. Set a real domain."
+[[ -z "${ROOT_DOMAIN}" ]] && die "ROOT_DOMAIN cannot be empty."
+[[ "${ROOT_DOMAIN}" == *"example.com"* ]] && die "That still looks like the placeholder. Set a real domain."
+
+# Derive service-specific hostnames if not provided explicitly.
+MATRIX_DOMAIN="${MATRIX_DOMAIN:-matrix.${ROOT_DOMAIN}}"
+ELEMENT_DOMAIN="${ELEMENT_DOMAIN:-element.${ROOT_DOMAIN}}"
+LIVEKIT_DOMAIN="${LIVEKIT_DOMAIN:-livekit.${ROOT_DOMAIN}}"
+TURN_DOMAIN="${TURN_DOMAIN:-turn.${ROOT_DOMAIN}}"
 
 if [[ -z "${LETSENCRYPT_EMAIL:-}" ]]; then
     read -rp "  2. Your email for Let's Encrypt notifications: " LETSENCRYPT_EMAIL
@@ -89,8 +99,12 @@ cat > "${ENV_FILE}" <<EOF
 # To regenerate: rm .env && ./init-env.sh
 # =============================================================================
 
-# ── Domain ────────────────────────────────────────────────────────────────────
-DOMAIN=${DOMAIN}
+# ── Domains ───────────────────────────────────────────────────────────────────
+ROOT_DOMAIN=${ROOT_DOMAIN}
+MATRIX_DOMAIN=${MATRIX_DOMAIN}
+ELEMENT_DOMAIN=${ELEMENT_DOMAIN}
+LIVEKIT_DOMAIN=${LIVEKIT_DOMAIN}
+TURN_DOMAIN=${TURN_DOMAIN}
 LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
 
 # ── Synapse secrets ───────────────────────────────────────────────────────────

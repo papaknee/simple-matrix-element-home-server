@@ -2,7 +2,7 @@
 # HTTPS LiveKit WebSocket signalling proxy.
 server {
     listen 80;
-    server_name livekit.${DOMAIN};
+    server_name ${LIVEKIT_DOMAIN};
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
@@ -14,11 +14,11 @@ server {
 
 server {
     listen 443 ssl http2;
-    server_name livekit.${DOMAIN};
+    server_name ${LIVEKIT_DOMAIN};
 
-    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/${DOMAIN}/chain.pem;
+    ssl_certificate     /etc/letsencrypt/live/${MATRIX_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${MATRIX_DOMAIN}/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/${MATRIX_DOMAIN}/chain.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_prefer_server_ciphers off;
 

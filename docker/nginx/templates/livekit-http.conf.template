@@ -2,7 +2,7 @@
 # HTTP-only LiveKit WebSocket signalling proxy.
 server {
     listen 80;
-    server_name livekit.${DOMAIN};
+    server_name ${LIVEKIT_DOMAIN};
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;

@@ -5,7 +5,7 @@
 # Redirect all HTTP → HTTPS
 server {
     listen 80;
-    server_name ${DOMAIN} www.${DOMAIN};
+    server_name ${MATRIX_DOMAIN};
 
     # Let's Encrypt ACME challenge (renewal)
     location /.well-known/acme-challenge/ {
@@ -20,11 +20,11 @@ server {
 # Matrix HTTPS server
 server {
     listen 443 ssl http2;
-    server_name ${DOMAIN};
+    server_name ${MATRIX_DOMAIN};
 
-    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/${DOMAIN}/chain.pem;
+    ssl_certificate     /etc/letsencrypt/live/${MATRIX_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${MATRIX_DOMAIN}/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/${MATRIX_DOMAIN}/chain.pem;
 
     # Modern SSL configuration (Mozilla Intermediate)
     ssl_protocols TLSv1.2 TLSv1.3;
@@ -46,11 +46,11 @@ server {
 
     # Matrix well-known delegation (allows other servers to find your server)
     location /.well-known/matrix/server {
-        return 200 '{"m.server": "${DOMAIN}:443"}';
+        return 200 '{"m.server": "${MATRIX_DOMAIN}:443"}';
         add_header Content-Type application/json;
     }
     location /.well-known/matrix/client {
-        return 200 '{"m.homeserver": {"base_url": "https://${DOMAIN}"}, "m.identity_server": {"base_url": ""}}';
+        return 200 '{"m.homeserver": {"base_url": "https://${MATRIX_DOMAIN}"}, "m.identity_server": {"base_url": ""}}';
         add_header Content-Type application/json;
         add_header Access-Control-Allow-Origin *;
     }
@@ -85,26 +85,19 @@ server {
         proxy_set_header X-Forwarded-Proto https;
     }
 
-    # Element Web (served at root)
     location / {
-        proxy_pass http://element:80;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto https;
-        add_header X-Content-Type-Options nosniff always;
-        add_header X-Frame-Options SAMEORIGIN always;
+        return 404;
     }
 }
 
 # Matrix federation over HTTPS (port 8448)
 server {
     listen 8448 ssl http2;
-    server_name ${DOMAIN};
+    server_name ${MATRIX_DOMAIN};
 
-    ssl_certificate     /etc/letsencrypt/live/${DOMAIN}/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/${DOMAIN}/privkey.pem;
-    ssl_trusted_certificate /etc/letsencrypt/live/${DOMAIN}/chain.pem;
+    ssl_certificate     /etc/letsencrypt/live/${MATRIX_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${MATRIX_DOMAIN}/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/${MATRIX_DOMAIN}/chain.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
 
     location /_matrix/ {

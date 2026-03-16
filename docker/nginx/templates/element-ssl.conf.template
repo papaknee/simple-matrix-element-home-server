@@ -1,5 +1,38 @@
-# element-ssl.conf.template  –  HTTPS Element Web
-# Note: the main Matrix server block (matrix-ssl.conf.template) handles the
-# domain's HTTPS vhost; Element is served at the root path "/" of that same
-# vhost (handled in matrix-ssl.conf.template via proxy_pass http://element).
-# This file is intentionally empty – Element routing is part of the matrix block.
+# element-ssl.conf.template
+# HTTPS Element Web reverse proxy.
+
+server {
+    listen 80;
+    server_name ${ELEMENT_DOMAIN};
+
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl http2;
+    server_name ${ELEMENT_DOMAIN};
+
+    ssl_certificate     /etc/letsencrypt/live/${MATRIX_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${MATRIX_DOMAIN}/privkey.pem;
+    ssl_trusted_certificate /etc/letsencrypt/live/${MATRIX_DOMAIN}/chain.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_prefer_server_ciphers off;
+
+    add_header Strict-Transport-Security "max-age=63072000" always;
+
+    location / {
+        proxy_pass http://element:80;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        add_header X-Content-Type-Options nosniff always;
+        add_header X-Frame-Options SAMEORIGIN always;
+    }
+}

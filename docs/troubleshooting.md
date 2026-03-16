@@ -65,10 +65,15 @@ curl https://matrix.example.com/_matrix/client/versions  # docker mode
 
 **Common causes:**
 - Wrong homeserver URL in Element config (`config.json`)
-  - Localhost: `base_url` should be `http://localhost:8080`
+    - Localhost: `base_url` should be `http://localhost:8080`
   - Docker: `base_url` should be `https://matrix.example.com`
 - nginx not running (`docker compose ps` or `sudo systemctl status nginx`)
 - CORS error: check browser DevTools (F12) → Console for CORS errors
+
+Quick UI check:
+```bash
+xdg-open https://element.example.com
+```
 
 ---
 
@@ -103,6 +108,12 @@ curl https://federationtester.matrix.org/api/report?server_name=matrix.example.c
 ```bash
 # Verify certificate is valid
 openssl s_client -connect matrix.example.com:443 -servername matrix.example.com \
+    </dev/null 2>/dev/null | openssl x509 -noout -dates
+
+# Verify Element and LiveKit hostnames are covered by the SAN certificate
+openssl s_client -connect element.example.com:443 -servername element.example.com \
+    </dev/null 2>/dev/null | openssl x509 -noout -dates
+openssl s_client -connect livekit.example.com:443 -servername livekit.example.com \
     </dev/null 2>/dev/null | openssl x509 -noout -dates
 
 # Check certificate chain
@@ -149,7 +160,7 @@ docker compose logs coturn --tail=50
 
 # Test STUN reachability (from a different machine)
 # Install: apt install stun-client
-stun -v matrix.example.com 3478
+stun -v turn.example.com 3478
 
 # Check that Synapse is sending TURN credentials
 # (Replace YOUR_ACCESS_TOKEN with a real token – see below for how to obtain one)
@@ -197,12 +208,17 @@ curl http://localhost:7880/      # Should return LiveKit info (internal)
 curl https://matrix.example.com/_matrix/client/unstable/com.element.msc3401/
 ```
 
+**Verify LiveKit signaling hostname**:
+```bash
+curl -I https://livekit.example.com/
+```
+
 **Common causes:**
 - LiveKit UDP port 7882 not open in firewall/router
 - `LIVEKIT_API_KEY` / `LIVEKIT_API_SECRET` mismatch between livekit and lk-jwt configs
   (re-run `./deploy.sh` if these were auto-generated and got out of sync)
-- Element Call URL not configured in `config.json` (`element_call.url`)
-- Group call feature flags not enabled in Element config
+- Element still using stale config from before migration (regenerate `docker/data/element/config.json`)
+- Group call feature flags not enabled in Element config (`feature_group_calls`)
 
 ### Checking LiveKit room status
 ```bash
@@ -226,7 +242,7 @@ apt install coturn
 turnutils_uclient -v \
     -u $(openssl rand -hex 8) \
     -w $(openssl rand -hex 8) \
-    matrix.example.com
+    turn.example.com
 
 # Test via docker
 docker compose exec coturn turnadmin -l
@@ -237,7 +253,7 @@ Use the online tool https://webrtc.github.io/samples/src/content/peerconnection/
 to test your STUN/TURN servers directly from a browser.
 
 Enter:
-- STUN/TURN URL: `turn:matrix.example.com:3478`
+- STUN/TURN URL: `turn:turn.example.com:3478`
 - Username and password from the Synapse TURN API (see step 5 above)
 - Click "Gather Candidates" – look for `relay` type candidates
 
@@ -306,7 +322,12 @@ sudo iptables -L -n -v
 nc -zv matrix.example.com 80
 nc -zv matrix.example.com 443
 nc -zv matrix.example.com 8448
-nc -zuv matrix.example.com 3478
+nc -zv element.example.com 80
+nc -zv element.example.com 443
+nc -zv livekit.example.com 80
+nc -zv livekit.example.com 443
+nc -zuv turn.example.com 3478
+nc -zv turn.example.com 5349
 ```
 
 ---

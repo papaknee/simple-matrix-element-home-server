@@ -6,13 +6,14 @@ This guide explains how to point a domain name you own to your home server.
 
 ## Overview
 
-When you register a domain name (e.g., `matrix.example.com`) with a domain
-registrar, you control its **DNS records**. You need to add DNS records that
-point your domain to your home's public IP address. Then your router needs to
-forward incoming traffic to your Debian machine.
+When you register a domain name (e.g., `example.com`) with a domain registrar,
+you control its **DNS records**. This project expects separate subdomains for
+each service by default, so you need to create multiple A records that all
+point to your home's public IP address. Then your router needs to forward
+incoming traffic to your Debian machine.
 
 ```
-Internet → DNS lookup "matrix.example.com" → Your public IP
+Internet → DNS lookup "matrix.example.com" / "element.example.com" / ... → Your public IP
          → Your home router → Port forwarding → Your Debian machine
 ```
 
@@ -41,18 +42,21 @@ Cloudflare, Porkbun, Hover, etc.) and create the following records:
 | Type | Host / Name          | Value (your public IP)  | TTL  |
 |------|----------------------|-------------------------|------|
 | A    | `matrix`             | `YOUR.PUBLIC.IP`        | 300  |
-| A    | `www.matrix`         | `YOUR.PUBLIC.IP`        | 300  |
-| A    | `livekit.matrix`     | `YOUR.PUBLIC.IP`        | 300  |
+| A    | `element`            | `YOUR.PUBLIC.IP`        | 300  |
+| A    | `livekit`            | `YOUR.PUBLIC.IP`        | 300  |
+| A    | `turn`               | `YOUR.PUBLIC.IP`        | 300  |
 
-> If your domain **is** the Matrix server (e.g., `example.com`), use `@` as the
-> host/name for the root record.
+> If you customize hostnames in `.env`, create matching DNS records for your
+> custom `MATRIX_DOMAIN`, `ELEMENT_DOMAIN`, `LIVEKIT_DOMAIN`, and `TURN_DOMAIN`.
 
-**Example** (domain = `example.com`, Matrix server = `matrix.example.com`):
+**Example** (root domain = `example.com`):
 
 | Type | Host     | Value           | TTL  |
 |------|----------|-----------------|------|
 | A    | `matrix` | `203.0.113.42`  | 300  |
-| A    | `livekit.matrix` | `203.0.113.42` | 300 |
+| A    | `element` | `203.0.113.42` | 300  |
+| A    | `livekit` | `203.0.113.42` | 300  |
+| A    | `turn` | `203.0.113.42` | 300  |
 
 Wait **5–30 minutes** for DNS to propagate (TTL 300 = 5 minutes).
 
@@ -63,6 +67,9 @@ Wait **5–30 minutes** for DNS to propagate (TTL 300 = 5 minutes).
 ```bash
 # Check that the A record resolves to your public IP
 dig +short matrix.example.com A
+dig +short element.example.com A
+dig +short livekit.example.com A
+dig +short turn.example.com A
 
 # Or use an online tool:
 # https://dnschecker.org/#A/matrix.example.com
@@ -86,7 +93,7 @@ The nginx config in this project does this automatically via:
 
 ```nginx
 location /.well-known/matrix/server {
-    return 200 '{"m.server": "${DOMAIN}:443"}';
+   return 200 '{"m.server": "${MATRIX_DOMAIN}:443"}';
 }
 ```
 
@@ -154,9 +161,13 @@ Before running `./init-letsencrypt.sh`, confirm:
 ```bash
 # 1. DNS resolves to your public IP
 dig +short matrix.example.com
+dig +short element.example.com
+dig +short livekit.example.com
+dig +short turn.example.com
 
 # 2. Port 80 is reachable from outside (Matrix server must be running)
 curl -v http://matrix.example.com/_matrix/client/versions
+curl -I http://element.example.com/
 
 # 3. (Optional) Check federation via matrix.org federation tester
 # https://federationtester.matrix.org/?server=matrix.example.com

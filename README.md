@@ -75,7 +75,7 @@ Group calls:   Element → Element Call widget
 ### Production (Docker)
 - Debian 13 (Trixie)
 - [Docker Engine](https://docs.docker.com/engine/install/debian/) with Compose plugin
-- A registered domain name (e.g., `matrix.example.com`)
+- A registered root domain (e.g., `example.com`) with service subdomains
 - Your machine's public IP reachable from the internet
 - Ports 80, 443, 8448, 3478, 5349, 7882 forwarded on your router
 
@@ -140,7 +140,7 @@ sudo bash teardown.sh
 ```bash
 cd docker/
 
-# 1. Generate your .env (asks for domain, email, and DB password;
+# 1. Generate your .env (asks for root domain, email, and DB password;
 #    all secrets are created automatically)
 bash init-env.sh
 ```
@@ -163,7 +163,13 @@ The deploy script will:
 curl http://matrix.example.com/_matrix/client/versions
 
 # Element loads in browser?
-xdg-open http://matrix.example.com
+xdg-open http://element.example.com
+
+# LiveKit hostname reachable?
+curl -I http://livekit.example.com/
+
+# TURN hostname resolves/reachable?
+dig +short turn.example.com
 ```
 
 See [`docs/domain-setup.md`](docs/domain-setup.md) and [`docs/router-setup.md`](docs/router-setup.md) to configure DNS and router port forwarding.
@@ -175,7 +181,7 @@ See [`docs/domain-setup.md`](docs/domain-setup.md) and [`docs/router-setup.md`](
 > ⚠️ **Rate limit warning**: Let's Encrypt allows only **5 certificate requests per registered domain per week**. Test with `STAGING=1` first.
 
 **Only run this once you have confirmed:**
-1. DNS A record for `matrix.example.com` resolves to your public IP ✅
+1. DNS A records for `matrix.example.com`, `element.example.com`, `livekit.example.com`, and `turn.example.com` resolve to your public IP ✅
 2. Port 80 is reachable from the internet ✅
 3. The server works in HTTP mode ✅
 
@@ -196,7 +202,7 @@ This will:
 4. Restart nginx with the HTTPS configuration
 5. Set up a daily cron job for automatic renewal
 
-After this, your Matrix server is accessible at `https://matrix.example.com`.
+After this, your services are accessible at `https://matrix.example.com`, `https://element.example.com`, and `https://livekit.example.com`.
 
 ---
 
@@ -300,16 +306,15 @@ Required ports (on router + firewall):
 
 Flow:
 1. User starts or joins a group call in Element
-2. Element opens the **Element Call** widget
-3. Element Call requests a LiveKit JWT from `lk-jwt-service`
-4. `lk-jwt-service` validates the Matrix auth token with Synapse
-5. `lk-jwt-service` returns a signed LiveKit JWT
-6. Element Call connects to LiveKit using the JWT
-7. All media (audio, video, screen share) flows through LiveKit
+2. Element requests a LiveKit JWT from `lk-jwt-service`
+3. `lk-jwt-service` validates the Matrix auth token with Synapse
+4. `lk-jwt-service` returns a signed LiveKit JWT
+5. Element connects to LiveKit using the JWT
+6. All media (audio, video, screen share) flows through LiveKit
 
 Required ports: `7882` UDP (LiveKit media)
 
-**Note on Element Call**: By default, Element is configured to use the hosted `call.element.io` for the Element Call widget. If you want full self-hosting, you can deploy the [Element Call](https://github.com/element-hq/element-call) app and update `element_call.url` in `docker/data/element/config.json`.
+**Default call policy**: This repo defaults to self-hosted call services only. Jitsi is disabled by default, and Element Call is not pointed at a hosted external URL.
 
 ---
 

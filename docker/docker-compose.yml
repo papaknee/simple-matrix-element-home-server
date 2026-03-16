@@ -15,7 +15,11 @@
 
 # ── Secrets from environment variables ────────────────────────────────────────
 x-common-env: &common-env
-  DOMAIN: ${DOMAIN}
+  ROOT_DOMAIN: ${ROOT_DOMAIN}
+  MATRIX_DOMAIN: ${MATRIX_DOMAIN}
+  ELEMENT_DOMAIN: ${ELEMENT_DOMAIN}
+  LIVEKIT_DOMAIN: ${LIVEKIT_DOMAIN}
+  TURN_DOMAIN: ${TURN_DOMAIN}
 
 networks:
   matrix:
@@ -67,7 +71,7 @@ services:
       - ./data/synapse/log.config:/data/log.config:ro
       # Signing key (generated into ./data/synapse/ by deploy.sh; must be
       # explicitly bind-mounted because synapse_data is a separate named volume)
-      - ./data/synapse/${DOMAIN}.signing.key:/data/${DOMAIN}.signing.key:ro
+      - ./data/synapse/${MATRIX_DOMAIN}.signing.key:/data/${MATRIX_DOMAIN}.signing.key:ro
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8008/health"]
       interval: 15s
