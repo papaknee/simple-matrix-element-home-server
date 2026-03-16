@@ -1,7 +1,7 @@
 {
   "default_server_config": {
     "m.homeserver": {
-      "base_url": "https://${MATRIX_DOMAIN}",
+      "base_url": "${MATRIX_BASE_URL}",
       "server_name": "${MATRIX_DOMAIN}"
     },
     "m.identity_server": {

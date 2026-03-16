@@ -17,15 +17,6 @@ rtc:
   tcp_port: 7881
   use_external_ip: true
 
-  # Prefer UDP for lower latency video
-  ice_servers:
-    - urls:
-        - turn:${TURN_DOMAIN}:3478?transport=udp
-        - turn:${TURN_DOMAIN}:3478?transport=tcp
-        - turns:${TURN_DOMAIN}:5349?transport=tcp
-      username: livekit
-      credential: ${COTURN_SECRET}
-
 # ── API Authentication ────────────────────────────────────────────────────────
 keys:
   ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
@@ -46,17 +37,8 @@ logging:
 
 # ── Room settings ─────────────────────────────────────────────────────────────
 room:
-  # Enable automatic track subscription for new participants
-  auto_create: true
-  # Maximum video bitrate per participant (Kbps)
-  max_bitrate: 3000000
-
-# ── Video codec preferences ───────────────────────────────────────────────────
-# VP8 is universally supported; AV1 is the most efficient if your clients
-# support it (latest Chrome/Firefox). For best compatibility, use VP8/VP9.
-video:
-  # Preferred codec ordering
-  codec: vp9
+  # lk-jwt-service creates rooms for local users, so keep implicit auto-create off.
+  auto_create: false
 
 # ── Screen sharing ────────────────────────────────────────────────────────────
 # LiveKit handles screen sharing as a standard video track.

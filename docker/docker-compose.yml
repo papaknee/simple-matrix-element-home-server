@@ -167,4 +167,7 @@ services:
     volumes:
       - ./data/lk-jwt/config.yaml:/config.yaml:ro
     environment:
-      LK_JWT_CONFIG: /config.yaml
+      LIVEKIT_URL: ws://livekit:7880
+      LIVEKIT_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_SECRET: ${LIVEKIT_API_SECRET}
+      LIVEKIT_FULL_ACCESS_HOMESERVERS: ${MATRIX_DOMAIN}

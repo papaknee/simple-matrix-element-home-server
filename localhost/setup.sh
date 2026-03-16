@@ -85,11 +85,17 @@ server_name: ${SYNAPSE_SERVER_NAME}
 EOF
 
 # Force registration settings via Debian conf.d (authoritative on packaged installs).
-REG_SHARED_SECRET="$(python3 - <<'PY'
+REG_SHARED_SECRET=""
+if [[ -f "${SYNAPSE_CONFIG_DIR}/conf.d/registration.yaml" ]]; then
+    REG_SHARED_SECRET="$(sed -n 's/^[[:space:]]*registration_shared_secret:[[:space:]]*"\([^"]*\)".*/\1/p' "${SYNAPSE_CONFIG_DIR}/conf.d/registration.yaml" | head -n1)"
+fi
+if [[ -z "${REG_SHARED_SECRET}" ]]; then
+    REG_SHARED_SECRET="$(python3 - <<'PY'
 import secrets
 print(secrets.token_hex(32))
 PY
 )"
+fi
 cat > "${SYNAPSE_CONFIG_DIR}/conf.d/registration.yaml" <<EOF
 # Managed by localhost/setup.sh
 enable_registration: true
@@ -153,6 +159,38 @@ def set_or_replace_block(cfg, header, block):
         cfg += "\n"
     return cfg + "\n" + block
 
+def normalize_listener_bind_addresses(cfg):
+    # Keep listeners bound to localhost without leaving behind stale list items.
+    lines = cfg.splitlines(keepends=True)
+    out = []
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        m = re.match(r'^(\s*)bind_addresses\s*:.*$', line)
+        if not m:
+            out.append(line)
+            i += 1
+            continue
+
+        indent = m.group(1)
+        out.append(f"{indent}bind_addresses: ['127.0.0.1']\n")
+        i += 1
+
+        # If the old form was a YAML list, drop any child list entries.
+        while i < len(lines):
+            child = lines[i]
+            if not child.strip():
+                break
+            child_indent = len(child) - len(child.lstrip(' '))
+            parent_indent = len(indent)
+            if child_indent <= parent_indent:
+                break
+            if re.match(r'^\s*-\s+.*$', child):
+                i += 1
+                continue
+            break
+    return ''.join(out)
+
 # Enable open registration so we can create test accounts easily
 text = set_or_append(text, 'enable_registration', 'true')
 text = set_or_append(text, 'enable_registration_without_verification', 'true')
@@ -161,9 +199,8 @@ text = set_or_append(text, 'enable_registration_without_verification', 'true')
 if not re.search(r'^#?\s*registration_shared_secret:.*$', text, flags=re.MULTILINE):
     text = set_or_append(text, 'registration_shared_secret', f'"{secrets.token_hex(32)}"')
 
-# Bind to localhost only (security for dev)
-text = re.sub(r'bind_addresses:.*\n.*- .*\n',
-              'bind_addresses: [\'127.0.0.1\']\n', text, flags=re.MULTILINE)
+# Bind listeners to localhost only (security for dev).
+text = normalize_listener_bind_addresses(text)
 
 # Relax login limits for localhost testing to avoid lockouts during retries.
 text = set_or_replace_block(
@@ -314,7 +351,7 @@ if [[ -z "${ADMIN_PASS:-}" ]]; then
 fi
 
 register_new_matrix_user \
-    -c "${SYNAPSE_CONFIG_DIR}/homeserver.yaml" \
+    -k "${REG_SHARED_SECRET}" \
     -u "${ADMIN_USER}" \
     -p "${ADMIN_PASS}" \
     -a \

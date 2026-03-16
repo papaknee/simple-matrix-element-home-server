@@ -35,6 +35,31 @@ die()     { echo -e "${RED}[deploy]${NC} $*" >&2; exit 1; }
 require_cmd() { command -v "$1" &>/dev/null || die "Required command not found: $1. Please install it."; }
 gen_secret()  { openssl rand -hex 32; }
 gen_short()   { openssl rand -hex 16; }
+SYNAPSE_UID=991
+SYNAPSE_GID=991
+
+prepare_synapse_volume() {
+    local container_id volume_name
+
+    info "Preparing Synapse runtime volume…"
+    ${DC} create synapse >/dev/null
+    container_id="$(${DC} ps -aq synapse | head -n1)"
+    [[ -n "${container_id}" ]] || die "Could not determine Synapse container ID after create."
+
+    volume_name="$(docker inspect "${container_id}" --format '{{range .Mounts}}{{if eq .Destination "/data"}}{{.Name}}{{end}}{{end}}')"
+    [[ -n "${volume_name}" ]] || die "Could not determine Synapse data volume name."
+
+    docker run --rm -u root \
+        -v "${volume_name}:/data" \
+        alpine:latest \
+        sh -eu -c "
+            mkdir -p /data/media_store /data/uploads
+            chown ${SYNAPSE_UID}:${SYNAPSE_GID} /data
+            chown -R ${SYNAPSE_UID}:${SYNAPSE_GID} /data/media_store /data/uploads
+        " >/dev/null
+
+    success "Synapse runtime volume ready."
+}
 
 # ── Prerequisites ─────────────────────────────────────────────────────────────
 require_cmd docker
@@ -69,6 +94,13 @@ set -a; source "${ENV_FILE}"; set +a
 [[ -z "${POSTGRES_PASSWORD:-}" || "${POSTGRES_PASSWORD}" == "CHANGE_ME"* ]] \
     && die "POSTGRES_PASSWORD is not set (or still the placeholder) in .env"
 
+if [[ "${SSL_ENABLED:-false}" == "true" ]]; then
+    PUBLIC_SCHEME="https"
+else
+    PUBLIC_SCHEME="http"
+fi
+MATRIX_BASE_URL="${PUBLIC_SCHEME}://${MATRIX_DOMAIN}"
+
 # ── Determine if this is a first-time deploy ──────────────────────────────────
 FIRST_DEPLOY=false
 [[ ! -f "${DATA_DIR}/synapse/homeserver.yaml" ]] && FIRST_DEPLOY=true
@@ -101,23 +133,17 @@ mkdir -p \
 # ── Render config templates (only if not already present) ─────────────────────
 render_template() {
     local src="$1" dst="$2"
-    if [[ -f "${dst}" ]]; then
-        warn "Skipping $(basename "${dst}") – already exists (preserving existing config)."
-        return
-    fi
     info "Rendering $(basename "${dst}") from template…"
     envsubst < "${src}" > "${dst}"
     success "  → ${dst}"
 }
 
-if [[ "${FIRST_DEPLOY}" == true ]]; then
-    render_template "${SCRIPT_DIR}/config/synapse/homeserver.yaml.template"  "${DATA_DIR}/synapse/homeserver.yaml"
-    render_template "${SCRIPT_DIR}/config/synapse/log.config.template"       "${DATA_DIR}/synapse/log.config"
-    render_template "${SCRIPT_DIR}/config/element/config.json.template"      "${DATA_DIR}/element/config.json"
-    render_template "${SCRIPT_DIR}/config/coturn/turnserver.conf.template"   "${DATA_DIR}/coturn/turnserver.conf"
-    render_template "${SCRIPT_DIR}/config/livekit/livekit.yaml.template"     "${DATA_DIR}/livekit/livekit.yaml"
-    render_template "${SCRIPT_DIR}/config/lk-jwt/config.yaml.template"       "${DATA_DIR}/lk-jwt/config.yaml"
-fi
+render_template "${SCRIPT_DIR}/config/synapse/homeserver.yaml.template"  "${DATA_DIR}/synapse/homeserver.yaml"
+render_template "${SCRIPT_DIR}/config/synapse/log.config.template"       "${DATA_DIR}/synapse/log.config"
+render_template "${SCRIPT_DIR}/config/element/config.json.template"      "${DATA_DIR}/element/config.json"
+render_template "${SCRIPT_DIR}/config/coturn/turnserver.conf.template"   "${DATA_DIR}/coturn/turnserver.conf"
+render_template "${SCRIPT_DIR}/config/livekit/livekit.yaml.template"     "${DATA_DIR}/livekit/livekit.yaml"
+render_template "${SCRIPT_DIR}/config/lk-jwt/config.yaml.template"       "${DATA_DIR}/lk-jwt/config.yaml"
 
 # ── Generate Synapse signing key (only on first deploy) ───────────────────────
 if [[ "${FIRST_DEPLOY}" == true && ! -f "${DATA_DIR}/synapse/${MATRIX_DOMAIN}.signing.key" ]]; then
@@ -135,6 +161,9 @@ info "Pulling latest images (this may take a few minutes)…"
 ${DC} pull --quiet 2>/dev/null || true
 info "Building custom nginx image…"
 ${DC} build nginx --quiet
+
+# Ensure the actual named volume mounted at /data is writable before startup.
+prepare_synapse_volume
 
 # ── Start services ────────────────────────────────────────────────────────────
 info "Starting services (SSL_ENABLED=${SSL_ENABLED:-false})…"

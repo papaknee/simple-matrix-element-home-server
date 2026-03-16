@@ -37,13 +37,13 @@ static-auth-secret=${COTURN_SECRET}
 # pkey=/etc/letsencrypt/live/${TURN_DOMAIN}/privkey.pem
 
 # ── Logging ───────────────────────────────────────────────────────────────────
-log-file=/var/log/coturn/turnserver.log
+# Leave logging on stderr/stdout so the container can run without a writable
+# /var/log mount.
 # Verbose logging for troubleshooting (comment out in production)
 # verbose
 
 # ── Security ──────────────────────────────────────────────────────────────────
 # Prevent relay to local / RFC1918 addresses (security best practice)
-no-loopback-peers
 no-multicast-peers
 denied-peer-ip=10.0.0.0-10.255.255.255
 denied-peer-ip=172.16.0.0-172.31.255.255
@@ -68,9 +68,4 @@ fingerprint
 mobility
 
 # ── Process ───────────────────────────────────────────────────────────────────
-# Run as the coturn user (handled by the Docker image)
-proc-user=turnserver
-proc-group=turnserver
-
-# Pidfile
-pidfile=/var/run/coturn/turnserver.pid
+# Let the container image choose its runtime user and pid handling.
