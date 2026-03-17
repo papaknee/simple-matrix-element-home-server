@@ -5,6 +5,11 @@
 # Pull the latest Docker images and restart services.
 # All configuration and data in ./data/ are PRESERVED.
 # Run from the docker/ directory.
+#
+# Usage:
+#   ./update.sh                 # update images only
+#   ./update.sh --sync-configs  # update images + restart config-driven services
+#                               # so they reload any changes you made in ./data/
 # =============================================================================
 set -euo pipefail
 
@@ -15,6 +20,9 @@ info()    { echo -e "${BLUE}[update]${NC} $*"; }
 success() { echo -e "${GREEN}[update]${NC} $*"; }
 warn()    { echo -e "${YELLOW}[update]${NC} $*"; }
 die()     { echo -e "${RED}[update]${NC} $*" >&2; exit 1; }
+
+SYNC_CONFIGS=false
+for arg in "$@"; do [[ "$arg" == "--sync-configs" ]] && SYNC_CONFIGS=true; done
 
 cd "${SCRIPT_DIR}"
 
@@ -39,8 +47,24 @@ ${DC} build nginx
 info "Restarting services with new images (data volumes preserved)…"
 ${DC} up -d --remove-orphans
 
+if [[ "${SYNC_CONFIGS}" == true ]]; then
+    echo
+    info "Restarting config-driven services to reload changes from ./data/…"
+    for svc in synapse element coturn livekit lk-jwt nginx; do
+        info "  Restarting ${svc}…"
+        ${DC} restart "${svc}"
+    done
+    success "Config reload complete."
+fi
+
+echo
 success "Update complete."
 echo
 echo "  All configuration files and data in ./data/ were preserved."
+if [[ "${SYNC_CONFIGS}" == false ]]; then
+    echo
+    echo "  Tip: if you edited files in ./data/, run with --sync-configs to"
+    echo "  restart services and apply those changes."
+fi
 echo
 ${DC} ps --format "table {{.Name}}\t{{.Status}}" 2>/dev/null || ${DC} ps

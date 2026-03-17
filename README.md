@@ -263,6 +263,16 @@ bash update.sh
 
 This runs `docker compose pull` + `docker compose up -d --remove-orphans`. The `./data/` directory and all named volumes are preserved.
 
+### Applying config changes
+
+If you have edited files in `docker/data/` (e.g. `homeserver.yaml`, `config.json`, `livekit.yaml`), pass `--sync-configs` to restart all config-driven services and have them pick up the changes:
+
+```bash
+bash update.sh --sync-configs
+```
+
+This restarts `synapse`, `element`, `coturn`, `livekit`, `lk-jwt`, and `nginx` after the image update. Config files are never overwritten — only the containers are restarted.
+
 ---
 
 ## Backing up your data
