@@ -21,6 +21,6 @@ livekit:
 
 matrix:
   # Synapse homeserver URL (internal Docker network)
-  homeserver: http://synapse:8008
+  homeserver_url: http://synapse:8008
   # Public URL (used to verify tokens issued by this homeserver)
   server_name: ${MATRIX_DOMAIN}

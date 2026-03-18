@@ -93,7 +93,14 @@ services:
       context: ./nginx
       dockerfile: Dockerfile
     restart: unless-stopped
-    networks: [matrix]
+    networks:
+      matrix:
+        aliases:
+          # These aliases let other containers resolve public domain names to nginx
+          # internally, bypassing NAT loopback (required for lk-jwt token validation).
+          - ${MATRIX_DOMAIN}
+          - ${ELEMENT_DOMAIN}
+          - ${LIVEKIT_DOMAIN}
     depends_on:
       - synapse
       - element

@@ -77,8 +77,10 @@ server {
     }
 
     # lk-jwt-service endpoints
+    # The trailing slash on proxy_pass strips the Matrix prefix so lk-jwt
+    # receives just /sfu/get (its internal path) instead of the full Matrix path.
     location /_matrix/client/unstable/com.element.msc3401/ {
-        proxy_pass http://lk-jwt:8080;
+        proxy_pass http://lk-jwt:8080/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

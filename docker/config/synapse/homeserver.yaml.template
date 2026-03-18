@@ -176,11 +176,22 @@ turn_allow_guests: true
 experimental_features:
   # MSC3401 – Native group calls (used by Element Call / LiveKit SFU)
   msc3401:
-    default: false
+    default: true
     allow: true
   # MSC3886 – HTTP Proxying for WebRTC
   msc3886:
     enabled: true
+  # MSC4143 – MatrixRTC focus advertisement (required for Element Call to discover LiveKit)
+  msc4143_enabled: true
+
+# ── MatrixRTC focus (Synapse 1.120+) ──────────────────────────────────────────
+# Advertises the lk-jwt service URL via GET /_matrix/client/unstable/org.matrix.msc4143/rtc/transports
+# so Element Call can discover the LiveKit SFU focus.
+# NOTE: The old 'livekit:' key was removed in Synapse 1.120+; use 'matrix_rtc:' instead.
+matrix_rtc:
+  transports:
+    - type: livekit
+      livekit_service_url: "https://${MATRIX_DOMAIN}/_matrix/client/unstable/com.element.msc3401"
 
 # ── Push rules / presence ─────────────────────────────────────────────────────
 presence:

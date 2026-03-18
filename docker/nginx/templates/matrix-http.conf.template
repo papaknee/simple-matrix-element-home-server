@@ -34,8 +34,9 @@ server {
     }
 
     # lk-jwt-service (Matrix → LiveKit JWT tokens)
+    # Trailing slash on proxy_pass strips the Matrix prefix so lk-jwt receives /sfu/get internally.
     location /_matrix/client/unstable/com.element.msc3401/ {
-        proxy_pass http://lk-jwt:8080;
+        proxy_pass http://lk-jwt:8080/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
