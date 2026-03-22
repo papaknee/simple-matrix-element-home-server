@@ -39,7 +39,9 @@ else
 fi
 
 info "Pulling latest images…"
-${DC} pull
+if ! ${DC} pull; then
+    warn "One or more images could not be pulled (network issue?). Continuing with locally cached images."
+fi
 
 info "Rebuilding custom nginx image…"
 ${DC} build nginx

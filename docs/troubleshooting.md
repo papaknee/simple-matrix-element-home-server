@@ -292,6 +292,9 @@ docker compose logs synapse -f  # Watch for migration messages
 # Check nginx config syntax
 docker compose exec nginx nginx -t
 
+# Dump the fully resolved config (all templates expanded)
+docker compose exec nginx nginx -T
+
 # View nginx error log
 docker compose logs nginx --tail=100
 
@@ -304,6 +307,39 @@ docker compose exec nginx wget -q -O- http://element:80
 - SSL certificate path wrong (nginx fails to start if cert doesn't exist)
 - Upstream service not running (nginx returns 502 Bad Gateway)
 - Config template not rendered (check `docker/data/nginx/` isn't being used)
+
+### Real-time connection stats
+
+A lightweight `stub_status` page is built into the nginx container and bound to
+`127.0.0.1:8880` inside the container. It is **not** exposed on the host and is
+unreachable from the internet.
+
+```bash
+cd docker/
+docker compose exec nginx curl -s http://127.0.0.1:8880/nginx_status
+```
+
+Example output:
+```
+Active connections: 5
+server accepts handled requests
+ 42 42 87
+Reading: 0 Writing: 1 Waiting: 4
+```
+
+| Field | Meaning |
+|---|---|
+| **Active connections** | Client connections currently open (including keep-alive) |
+| **accepts** | Total connections accepted since nginx started |
+| **handled** | Total connections fully handled (should equal accepts) |
+| **requests** | Total HTTP requests served since nginx started |
+| **Reading** | Connections where nginx is still reading the request header |
+| **Writing** | Connections actively sending a response to a client |
+| **Waiting** | Idle keep-alive connections (open but no active request) |
+
+> **Note:** The stats reset to zero each time the nginx container is restarted.
+> A persistent gap between `accepts` and `handled` indicates dropped connections
+> (usually a resource exhaustion problem).
 
 ---
 

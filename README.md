@@ -445,6 +445,21 @@ docker compose logs synapse --tail=50
 # nginx config valid?
 docker compose exec nginx nginx -t
 
+# nginx real-time connection stats (localhost only – never exposed externally)
+docker compose exec nginx curl -s http://127.0.0.1:8880/nginx_status
+# Output:
+#   Active connections: 5
+#   server accepts handled requests
+#    42 42 87
+#   Reading: 0 Writing: 1 Waiting: 4
+#
+# Active connections – open client connections right now
+# accepts / handled  – total connections accepted and handled since start
+# requests           – total HTTP requests served since start
+# Reading            – connections where nginx is reading the request header
+# Writing            – connections actively writing a response to a client
+# Waiting            – idle keep-alive connections
+
 # TURN server working?
 curl -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
      https://matrix.example.com/_matrix/client/v3/voip/turnServer
