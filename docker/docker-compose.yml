@@ -174,7 +174,10 @@ services:
     volumes:
       - ./data/lk-jwt/config.yaml:/config.yaml:ro
     environment:
-      LIVEKIT_URL: ws://livekit:7880
+      # Must be the public WSS URL so that browsers can connect directly.
+      # nginx aliases ${LIVEKIT_DOMAIN} on the internal Docker network so
+      # lk-jwt's own API calls to LiveKit also route correctly internally.
+      LIVEKIT_URL: wss://${LIVEKIT_DOMAIN}
       LIVEKIT_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_SECRET: ${LIVEKIT_API_SECRET}
       LIVEKIT_FULL_ACCESS_HOMESERVERS: ${MATRIX_DOMAIN}

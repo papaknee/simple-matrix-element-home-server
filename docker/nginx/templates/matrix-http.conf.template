@@ -34,9 +34,13 @@ server {
     }
 
     # lk-jwt-service (Matrix → LiveKit JWT tokens)
-    # Trailing slash on proxy_pass strips the Matrix prefix so lk-jwt receives /sfu/get internally.
+    # Uses resolver + variable so nginx re-resolves the lk-jwt hostname on
+    # every request (Docker container IPs can change across restarts).
     location /_matrix/client/unstable/com.element.msc3401/ {
-        proxy_pass http://lk-jwt:8080/;
+        resolver 127.0.0.11 valid=30s;
+        set $upstream_lk_jwt http://lk-jwt:8080;
+        rewrite ^/_matrix/client/unstable/com\.element\.msc3401/(.*) /$1 break;
+        proxy_pass $upstream_lk_jwt;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

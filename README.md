@@ -362,11 +362,13 @@ Required ports (on router + firewall):
 
 Flow:
 1. User starts or joins a group call in Element
-2. Element requests a LiveKit JWT from `lk-jwt-service`
-3. `lk-jwt-service` validates the Matrix auth token with Synapse
-4. `lk-jwt-service` returns a signed LiveKit JWT
-5. Element connects to LiveKit using the JWT
+2. Element requests a LiveKit JWT from `lk-jwt-service` (via `/_matrix/client/unstable/com.element.msc3401/`)
+3. `lk-jwt-service` validates the Matrix access token with Synapse
+4. `lk-jwt-service` returns a signed LiveKit JWT **plus the public LiveKit URL** (`wss://livekit.example.com`)
+5. Element's browser connects directly to LiveKit over WebSocket using that JWT
 6. All media (audio, video, screen share) flows through LiveKit
+
+> **Important:** `LIVEKIT_URL` in `docker-compose.yml` must be the **public** `wss://` URL (e.g. `wss://livekit.example.com`), not the internal Docker hostname (`ws://livekit:7880`). lk-jwt returns this URL verbatim to browsers — if it is an internal hostname, the browser cannot connect and calls will fail with `UNKNOWN_ERROR`.
 
 Required ports: `7882` UDP (LiveKit media)
 

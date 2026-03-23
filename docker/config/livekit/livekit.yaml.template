@@ -14,7 +14,8 @@ port: 7880
 rtc:
   # UDP port range for media (must be open in firewall/router)
   udp_port: 7882
-  tcp_port: 7881
+  # tcp_port 7881 is intentionally omitted – it is not mapped in docker-compose
+  # and not forwarded on the router, so advertising it causes failed ICE pairs.
   use_external_ip: true
 
 # ── API Authentication ────────────────────────────────────────────────────────
@@ -22,13 +23,14 @@ keys:
   ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}
 
 # ── TURN integration ──────────────────────────────────────────────────────────
-# LiveKit can generate TURN credentials using the coturn shared secret.
+# LiveKit's built-in TURN is disabled. coturn (running on host network) is the
+# TURN server for this deployment. LiveKit's built-in TURN would start on ports
+# 3478/5349 inside the Docker container (which are not mapped out), so it can
+# never be reached by browsers – and it advertises credentials that coturn
+# doesn't recognise, causing relay auth failures. Disable it entirely so
+# LiveKit only offers direct UDP candidates (port 7882) to clients.
 turn:
-  enabled: true
-  domain: ${TURN_DOMAIN}
-  tls_port: 5349
-  udp_port: 3478
-  external_tls: true
+  enabled: false
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging:

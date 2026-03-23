@@ -173,14 +173,10 @@ turn_user_lifetime: 86400000
 turn_allow_guests: true
 
 # ── Experimental features ─────────────────────────────────────────────────────
+# MSC3401 (native group calls) is stable in Synapse 1.109+; no experimental flag needed.
 experimental_features:
-  # MSC3401 – Native group calls (used by Element Call / LiveKit SFU)
-  msc3401:
-    default: true
-    allow: true
   # MSC3886 – HTTP Proxying for WebRTC
-  msc3886:
-    enabled: true
+  msc3886_enabled: true
   # MSC4143 – MatrixRTC focus advertisement (required for Element Call to discover LiveKit)
   msc4143_enabled: true
 
