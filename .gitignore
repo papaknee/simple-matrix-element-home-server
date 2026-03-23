@@ -15,3 +15,6 @@ docker/data/
 
 # Temporary files
 /tmp/
+docker/backup-db-2026-03-22.sql
+docker/backup-data-2026-03-22.tar.gz
+docker/backup-synapse-volume-2026-03-22.tar.gz
